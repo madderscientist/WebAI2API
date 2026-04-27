@@ -1,0 +1,10 @@
+{
+    "chat_session_id": "4acb626a-16c5-4160-9b2b-c7c2f959a4f1",
+    "parent_message_id": 16,
+    "model_type": null,
+    "prompt": "playwright 可以同时操作多个page吗？",
+    "ref_file_ids": [],
+    "thinking_enabled": false,
+    "search_enabled": true,
+    "preempt": false
+}

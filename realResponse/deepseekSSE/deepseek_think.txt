@@ -1,0 +1,212 @@
+event: ready
+data: {"request_message_id":1,"response_message_id":2,"model_type":"default"}
+
+event: update_session
+data: {"updated_at":1777129208.8862948}
+
+data: {"v":{"response":{"message_id":2,"parent_id":1,"model":"","role":"ASSISTANT","thinking_enabled":true,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"files":[],"feedback":null,"inserted_at":1777129208.880945,"search_enabled":true,"fragments":[{"id":2,"type":"THINK","content":"我们","elapsed_secs":null,"references":[],"stage_id":1}],"conversation_mode":"DEFAULT","has_pending_fragment":false,"auto_continue":false}}}
+
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"要求"}
+
+data: {"v":"思考"}
+
+data: {"v":"长度"}
+
+data: {"v":"限制"}
+
+data: {"v":"为"}
+
+data: {"v":"10"}
+
+data: {"v":"个字"}
+
+data: {"v":"，"}
+
+data: {"v":"回复"}
+
+data: {"v":"限制"}
+
+data: {"v":"在"}
+
+data: {"v":"5"}
+
+data: {"v":"个字"}
+
+data: {"v":"。"}
+
+data: {"v":"思考"}
+
+data: {"v":"内容"}
+
+data: {"v":"需要"}
+
+data: {"v":"精简"}
+
+data: {"v":"到"}
+
+data: {"v":"10"}
+
+data: {"v":"字"}
+
+data: {"v":"以内"}
+
+data: {"v":"。"}
+
+data: {"v":"回复"}
+
+data: {"v":"内容"}
+
+data: {"v":"5"}
+
+data: {"v":"个字"}
+
+data: {"v":"。"}
+
+data: {"v":"用户"}
+
+data: {"v":"可能"}
+
+data: {"v":"只是"}
+
+data: {"v":"测试"}
+
+data: {"v":"？"}
+
+data: {"v":"但"}
+
+data: {"v":"需要"}
+
+data: {"v":"给出"}
+
+data: {"v":"合理"}
+
+data: {"v":"回复"}
+
+data: {"v":"。"}
+
+data: {"v":"思考"}
+
+data: {"v":"："}
+
+data: {"v":"例如"}
+
+data: {"v":"“"}
+
+data: {"v":"收到"}
+
+data: {"v":"，"}
+
+data: {"v":"简短"}
+
+data: {"v":"回复"}
+
+data: {"v":"”。"}
+
+data: {"v":"回复"}
+
+data: {"v":"：“"}
+
+data: {"v":"明白"}
+
+data: {"v":"”。"}
+
+data: {"v":"但"}
+
+data: {"v":"需"}
+
+data: {"v":"符合"}
+
+data: {"v":"。"}
+
+data: {"v":"更"}
+
+data: {"v":"佳"}
+
+data: {"v":"思考"}
+
+data: {"v":"：“"}
+
+data: {"v":"简短"}
+
+data: {"v":"回复"}
+
+data: {"v":"即可"}
+
+data: {"v":"”。"}
+
+data: {"v":"回复"}
+
+data: {"v":"：“"}
+
+data: {"v":"好的"}
+
+data: {"v":"”。"}
+
+data: {"v":"确保"}
+
+data: {"v":"思考"}
+
+data: {"v":"不超过"}
+
+data: {"v":"10"}
+
+data: {"v":"字"}
+
+data: {"v":"。"}
+
+data: {"v":"思考"}
+
+data: {"v":"：“"}
+
+data: {"v":"10"}
+
+data: {"v":"字"}
+
+data: {"v":"思考"}
+
+data: {"v":"限制"}
+
+data: {"v":"”。"}
+
+data: {"v":"回复"}
+
+data: {"v":"：“"}
+
+data: {"v":"收到"}
+
+data: {"v":"”。"}
+
+data: {"p":"response/fragments/-1/elapsed_secs","o":"SET","v":1.7184435040000001}
+
+data: {"p":"response/fragments","o":"APPEND","v":[{"id":3,"type":"RESPONSE","content":"思考","references":[],"stage_id":1}]}
+
+data: {"p":"response/fragments/-1/content","v":"："}
+
+data: {"v":"十"}
+
+data: {"v":"字"}
+
+data: {"v":"内"}
+
+data: {"v":"思考"}
+
+data: {"v":"  \n"}
+
+data: {"v":"回复"}
+
+data: {"v":"："}
+
+data: {"v":"明白"}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"accumulated_token_usage","v":53},{"p":"quasi_status","v":"FINISHED"}]}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+
+event: update_session
+data: {"updated_at":1777129210.9318419}
+
+event: title
+data: {"content":"简短回复示例"}
+
+event: close
+data: {"click_behavior":"none","auto_resume":false}

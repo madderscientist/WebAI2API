@@ -1,0 +1,132 @@
+{
+    "code": 0,
+    "msg": "",
+    "data": {
+        "biz_code": 0,
+        "biz_msg": "",
+        "biz_data": {
+            "chat_session": {
+                "id": "3f881e9c-839a-4baf-a29b-8cb8a307bdd7",
+                "title": "专家快速模式区别解析",
+                "title_type": "SYSTEM",
+                "model_type": "expert",
+                "pinned": false,
+                "updated_at": 1777111235.503,
+                "seq_id": 199274435,
+                "agent": "chat",
+                "version": 4,
+                "is_empty": false,
+                "current_message_id": 4,
+                "inserted_at": 1777109333.989
+            },
+            "chat_messages": [
+                {
+                    "message_id": 1,
+                    "parent_id": null,
+                    "model": "",
+                    "role": "USER",
+                    "thinking_enabled": false,
+                    "ban_edit": false,
+                    "ban_regenerate": false,
+                    "status": "FINISHED",
+                    "incomplete_message": null,
+                    "accumulated_token_usage": 36,
+                    "files": [],
+                    "feedback": null,
+                    "inserted_at": 1777110470.1759999,
+                    "search_enabled": true,
+                    "fragments": [
+                        {
+                            "id": 1,
+                            "type": "REQUEST",
+                            "content": "专家模式和快速模式有什么区别"
+                        }
+                    ],
+                    "has_pending_fragment": false,
+                    "auto_continue": false
+                },
+                {
+                    "message_id": 2,
+                    "parent_id": 1,
+                    "model": "",
+                    "role": "ASSISTANT",
+                    "thinking_enabled": false,
+                    "ban_edit": false,
+                    "ban_regenerate": false,
+                    "status": "FINISHED",
+                    "incomplete_message": null,
+                    "accumulated_token_usage": 680,
+                    "files": [],
+                    "feedback": null,
+                    "inserted_at": 1777110470.178,
+                    "search_enabled": true,
+                    "fragments": [
+                        {
+                            "id": 2,
+                            "type": "RESPONSE",
+                            "content": "好的，我来帮你理清“专家模式”和“快速模式”这两种常见模式的区别。\n\n虽然根据具体软件/场景（比如电脑BIOS设置、相机、AI助手、游戏等），具体指代会有些差异，但它们的核心思想是一致的：\n\n| 对比维度 | 🧠 **专家模式** | ⚡️ **快速模式** |\n| :--- | :--- | :--- |\n| **核心目标** | **深度、精准、完全掌控** | **效率、便捷、快速完成** |\n| **用户画像** | 对该领域非常熟悉的**高级用户/专业人员** | 追求效率的**普通用户或新手** |\n| **操作界面** | 复杂，**选项极多，布满设置项** | 简洁，**只有少数核心选项**，界面清爽 |\n| **可控性** | 极高，可以微调每个角落的参数 | 较低，大部分决定由系统自动完成 |\n| **效率/速度** | 操作步骤多，**单次设置耗时长** | 操作步骤极少，**一键或几步即可完成** |\n| **典型应用** | BIOS里的超频设置、相机的M档、软件的“高级设置” | BIOS的EZ Mode、相机的AUTO档、AI的一问一答 |\n\n---\n\n### 具体场景举例，一看就懂：\n\n**1. 电脑BIOS / 超频软件**\n\n-   **快速模式：** 常被叫做 **EZ Mode**。界面是个图形化的仪表盘，只显示CPU温度、频率等基本信息。你可以一键开启“性能模式”或“节能模式”，无需细究。\n-   **专家模式：** 常被叫做 **Advanced Mode**。全是电压、时序、频率调节选项。你可以手动将CPU的每个核心设定在不同频率，但一旦设错可能导致系统不稳。\n\n**2. 相机 / 专业摄影 App**\n\n-   **快速模式：** 就是**全自动挡（AUTO）** 或常见的“人像”、“夜景”等场景模式。举起手机就拍，相机帮你决定一切。\n-   **专家模式：** 就是**专业模式（Pro Mode）**。你可以独立控制感光度（ISO）、快门速度、白平衡、手动对焦，来创作车流光轨或虚化背景等特定效果。\n\n**3. AI 助手（比如我）**\n\n-   **快速模式：** 对应**力求简洁的回答**。你问什么，我答什么，直接给出步骤或结论，不去解释背后的原理，追求极致的响应和阅读效率。\n-   **专家模式：** 对应**深入分析的回答**。我在给出答案的同时，会提供背景知识、分析逻辑、对比方案，甚至告诉你我的思考过程，让你能做出更周全的判断——就像现在这样。\n\n**总的来说，选哪个取决于你的需求和水平：**\n如果你只想“快点搞定”，选**快速模式**；如果你想“完全按自己的意思来，挖掘最大潜力”，那就切换到**专家模式**。\n\n如果你说的是某个特定软件或场景中的这两种模式，也可以告诉我，我再为你具体分析。",
+                            "references": [],
+                            "stage_id": 1
+                        }
+                    ],
+                    "has_pending_fragment": false,
+                    "auto_continue": false
+                },
+                {
+                    "message_id": 3,
+                    "parent_id": 2,
+                    "model": "",
+                    "role": "USER",
+                    "thinking_enabled": false,
+                    "ban_edit": false,
+                    "ban_regenerate": false,
+                    "status": "FINISHED",
+                    "incomplete_message": null,
+                    "accumulated_token_usage": 709,
+                    "files": [],
+                    "feedback": null,
+                    "inserted_at": 1777111221.8799999,
+                    "search_enabled": true,
+                    "fragments": [
+                        {
+                            "id": 1,
+                            "type": "REQUEST",
+                            "content": "我指的是deepseek的两个模式"
+                        }
+                    ],
+                    "has_pending_fragment": false,
+                    "auto_continue": false
+                },
+                {
+                    "message_id": 4,
+                    "parent_id": 3,
+                    "model": "",
+                    "role": "ASSISTANT",
+                    "thinking_enabled": false,
+                    "ban_edit": false,
+                    "ban_regenerate": false,
+                    "status": "FINISHED",
+                    "incomplete_message": null,
+                    "accumulated_token_usage": 1202,
+                    "files": [],
+                    "feedback": null,
+                    "inserted_at": 1777111221.882,
+                    "search_enabled": true,
+                    "fragments": [
+                        {
+                            "id": 2,
+                            "type": "RESPONSE",
+                            "content": "明白了，原来你问的是**DeepSeek自身的两个模式**。抱歉刚才理解得不够精准。\n\n在 DeepSeek 中，“快速模式”和“专家模式”实际上是**两种不同的内部运行配置**，区别主要体现在**推理深度、思考过程展示、以及能用的功能上**。具体对比如下：\n\n| 对比维度 | ⚡️ **快速模式** | 🧠 **专家模式** |\n| :--- | :--- | :--- |\n| **核心定位** | 日常高频对话、简单问答、快速获取信息 | 复杂推理、深度分析、可复现结果 |\n| **推理深度** | **标准推理**，响应速度快 | **深度推理**，会花更多时间进行多步、多角度的思考 |\n| **思考过程** | **不可见**，只给出最终答案 | **可见（可选）**，会展示模型的思维链（CoT），让你知道它如何一步步得出结论 |\n| **联网搜索** | **支持**且默认可能开启（需手动关闭） | **不支持**，完全依赖模型自身的知识和推理能力 |\n| **知识时效** | 可与联网结合获取**最新信息** | 知识截止训练日期，无实时信息 |\n| **稳定性/复现性** | 有随机性，同一个问题可能给出不同回答 | **确定性更强**，通过固定参数（如 temperature=0）使结果可复现，更少随机性 |\n| **适用场景** | “今天天气怎样？”、“写一封感谢邮件”、“推荐几部电影” | “详细推导贝叶斯定理的数学证明”、“设计一个分布式系统架构并分析其一致性” |\n\n---\n\n### 快速总结一下，怎么选：\n\n-   **想要最新的信息** → 只能用 **快速模式**（专家模式不支持联网搜索）。\n-   **想要看到模型是怎么思考的，验证它的逻辑链** → 切换到 **专家模式**，并勾选“展示思考过程”。\n-   **做学术研究或需要深度推理，且希望多次结果稳定一致** → 用 **专家模式**。\n-   **日常闲聊、创意写作，需要灵感和多样性** → 用 **快速模式**，响应更快，回答也更多样。\n\n你现在使用 DeepSeek 时，更常用哪一个模式？如果对如何切换或某个模式的具体用法有疑问，我可以继续帮你解答。",
+                            "references": [],
+                            "stage_id": 1
+                        }
+                    ],
+                    "has_pending_fragment": false,
+                    "auto_continue": false
+                }
+            ],
+            "cache_control": "REPLACE",
+            "cache_reset_at": 1777111757
+        }
+    }
+}

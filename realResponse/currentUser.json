@@ -1,0 +1,40 @@
+{
+    "code": 0,
+    "msg": "",
+    "data": {
+        "biz_code": 0,
+        "biz_msg": "",
+        "biz_data": {
+            "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "token": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+            "email": "",
+            "mobile_number": "1**********",
+            "area_code": "+86",
+            "status": 0,
+            "id_profile": {
+                "provider": "WECHAT",
+                "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "name": "xxx",
+                "picture": "https://static.deepseek.com/user-avatar/xxxx",
+                "locale": "zh_CN",
+                "email": null
+            },
+            "id_profiles": [
+                {
+                    "provider": "WECHAT",
+                    "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                    "name": "xxx",
+                    "picture": "https://static.deepseek.com/user-avatar/xxxx",
+                    "locale": "zh_CN",
+                    "email": null
+                }
+            ],
+            "chat": {
+                "is_muted": 0,
+                "mute_until": null
+            },
+            "has_legacy_chat_history": false,
+            "need_birthday": false
+        }
+    }
+}

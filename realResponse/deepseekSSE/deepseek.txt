@@ -1,0 +1,44 @@
+event: ready
+data: {"request_message_id":1,"response_message_id":2,"model_type":"default"}
+
+event: update_session
+data: {"updated_at":1776948826.812744}
+
+data: {"v":{"response":{"message_id":2,"parent_id":1,"model":"","role":"ASSISTANT","thinking_enabled":false,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"files":[],"feedback":null,"inserted_at":1776948826.8071299,"search_enabled":false,"fragments":[{"id":2,"type":"RESPONSE","content":"你好","references":[],"stage_id":1}],"has_pending_fragment":false,"auto_continue":false}}}
+
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"！"}
+
+data: {"v":"很高兴"}
+
+data: {"v":"见到"}
+
+data: {"v":"你"}
+
+data: {"v":"，"}
+
+data: {"v":"有什么"}
+
+data: {"v":"我可以"}
+
+data: {"v":"帮"}
+
+data: {"v":"你的"}
+
+data: {"v":"吗"}
+
+data: {"v":"？"}
+
+data: {"v":"😊"}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"accumulated_token_usage","v":45},{"p":"quasi_status","v":"FINISHED"}]}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+
+event: update_session
+data: {"updated_at":1776948827.4160118}
+
+event: title
+data: {"content":"用户问候助手回应"}
+
+event: close
+data: {"click_behavior":"none","auto_resume":false}

@@ -1,0 +1,1253 @@
+event: ready
+data: {"request_message_id":1,"response_message_id":2,"model_type":"default"}
+
+event: update_session
+data: {"updated_at":1776951921.635201}
+
+data: {"v":{"response":{"message_id":2,"parent_id":1,"model":"","role":"ASSISTANT","thinking_enabled":false,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"files":[],"feedback":null,"inserted_at":1776951921.631728,"search_enabled":true,"fragments":[{"id":2,"type":"SEARCH","status":"WIP","content":null,"queries":[{"query":"油猴脚本 引入 本地 JS 文件 方法"},{"query":"Tampermonkey 引入 本地 脚本 文件"},{"query":"油猴脚本 模块化 代码复用"}],"results":[]}],"has_pending_fragment":false,"auto_continue":false}}}
+
+data: {"p":"response/fragments/-1/results","v":[{"url":"https://m.php.cn/faq/1739543.html","title":"油猴脚本怎么添加新脚本 油猴脚本导入路径与管理方式","snippet":"1、打开 Tampermonkey 扩展面板，点击仪表盘进入管理界面。 2、切换至“脚本”标签页，找到左上角的实用工具菜单。 3、选择“从文件安装…”，在弹出的系统对话框中定位并选中您的 .user.js 文件。","cite_index":1,"published_at":1763308800.0,"site_icon":"https://cdn.deepseek.com/site-icons/php.cn","site_name":"php.cn","query_indexes":[0,1]},{"url":"https://www.tampermonkey.net/faq.php?ext=8&locale=de&q=Q402","title":"Häufige Fragen | Tampermonkey","snippet":"Add a@require tag with the path to the local file that you want to include in the script. For example, if the file is located at C:\\Users\\[USERNAME]\\Documents\\myscript.js, you would add the following line to the script:// @require file://C:/Users/[USERNAME]/Documents/myscript.js","cite_index":2,"published_at":1776182400.0,"site_icon":"https://cdn.deepseek.com/site-icons/tampermonkey.net","site_name":"Tampermonkey","query_indexes":[1]},{"url":"https://www.npmjs.com/package/@javascript-reverse-engineering-infrastructure/typescript-userscript-template?activeTab=dependencies","title":"@javascript-reverse-engineering-infrastructure/typescript-userscript-template","snippet":"使用Node.js + Webpack 模块化开发油猴脚本的方案，用于提升油猴开发体验，降低开发时的心智负担，让油猴脚本也能当做一个普通的模块化的前端项目来开发，要不然一个 JavaScript 文件几千行来回改本人真的有点顶不住......","cite_index":3,"published_at":1753545600.0,"site_icon":"https://cdn.deepseek.com/site-icons/npmjs.com","site_name":"NPM","query_indexes":[2,0]},{"url":"https://docs.pingcode.com/baike/3679258","title":"油猴怎么添加本地脚本js格式","snippet":"要在油猴中添加本地脚本，您可以按照以下步骤进行操作：首先，在浏览器中点击油猴插件图标，选择“管理面板”。接下来，点击左侧菜单栏中的“实用工具”，再点击“文件”，然后在“脚本”选项卡下点击“添加新的脚本”。在弹出的编辑器中...","cite_index":4,"published_at":1728662400.0,"site_icon":"https://cdn.deepseek.com/site-icons/pingcode.com","site_name":"PingCode","query_indexes":[0,1]},{"url":"https://cloud.tencent.cn/developer/information/%e5%9c%a8%e7%af%a1%e6%94%b9%e7%8c%b4%e5%ad%90%e8%84%9a%e6%9c%ac%e4%b8%8a%e5%af%bc%e5%85%a5%e6%9c%ac%e5%9c%b0%e6%96%87%e4%bb%b6-ask","title":"在篡改猴子脚本上导入本地文件 - 腾讯云开发者社区","snippet":"我在一个网站上使用tampermonkey运行一些脚本。您将看到一个弹出窗口，您可以在其中按yes或no。是=将URL添加到用户包含的篡改猴子脚本(脚本将在此URL上运行)否=不添加 在互联网上找不到关于这个主题的文档，所以我想知道是否有人有什么建议？","cite_index":5,"published_at":1735056000.0,"site_icon":"https://cdn.deepseek.com/site-icons/tencent.cn","site_name":"CSDN博客","query_indexes":[1]},{"url":"http://greasyfork.icu/zh-CN/scripts/545792-caliber-js-framework-library","title":"Greasy Fork","snippet":"⚡️ 真正的模块化 (True Modularity) 所有功能都被封装在独立的 Module 类中，拥有清晰的生命周期方法 (onEnable, onDisable)。这使得代码高度内聚、易于管理和复用。","cite_index":6,"published_at":1755100800.0,"site_icon":"https://cdn.deepseek.com/site-icons/greasyfork.icu","site_name":"greasyfork.icu","query_indexes":[2]},{"url":"https://www.cnblogs.com/maxiaocang/p/19109732#commentform","title":"油猴（Tampermonkey）插件从安装到使用","snippet":"2、在本地电脑目录新建一个脚本文件（.js），然后用编译器打开编写脚本（我用的是vscode），最后在油猴管理面板-新建脚本，使用 // @require file:///*** 引入本地脚本文件路径，就可以使用脚本了。","cite_index":7,"published_at":1758643200.0,"site_icon":"https://cdn.deepseek.com/site-icons/cnblogs.com","site_name":"博客园","query_indexes":[0]},{"url":"https://wenku.csdn.net/answer/fb0cfa0906634afbbb12eb035e06d99f","title":"油猴脚本怎么引用本地js文件","snippet":"10083)创建了一个 `script` 标签，然后将 `src` 属性设置为本地文件的路径。最后，将 `script` 标签添加到页面的 `head` 元素中。 请注意，这种方法只适用于本地文件。如果你想引用远程文件...","cite_index":8,"published_at":1697904000.0,"site_icon":"https://cdn.deepseek.com/site-icons/csdn.net","site_name":"CSDN","query_indexes":[0]},{"url":"https://www.php.cn/faq/1869906.html","title":"油猴脚本生成器是什么 油猴脚本自动生成与代码模板说明","snippet":"油猴脚本生成器是一种辅助工具 ... 它通常提供图形化配置选项，用户只需填写目标网址、触发条件和期望行为，即可自动生成完整的Tampermonkey兼容脚本。其核心功能是将常见操作模式封装为可复用的代码结构。","cite_index":9,"published_at":1766160000.0,"site_icon":"https://cdn.deepseek.com/site-icons/php.cn","site_name":"php.cn","query_indexes":[2]},{"url":"https://blog.csdn.net/jx520/article/details/129836919","title":"Tampermonkey油猴 加载本地文件","snippet":"1. 加载本地 脚本 common.js 用来存放公共方法，方便重用。 引用本地 JS 有两条事要做，顺序不分前后，但都要做。 - 正确引用本地文件// @require file://本地JS绝对路径 如：// @require file://d:/temp/common.js","cite_index":10,"published_at":1680019200.0,"site_icon":"https://cdn.deepseek.com/site-icons/csdn.net","site_name":"CSDN博客","query_indexes":[0,1]}]}
+
+data: {"p":"response/fragments/-1/status","v":"FINISHED"}
+
+data: {"p":"response/conversation_mode","v":"SEARCH"}
+
+data: {"p":"response/has_pending_fragment","v":true}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"fragments","o":"APPEND","v":[{"id":3,"type":"RESPONSE","content":"可以的","references":[],"stage_id":2}]},{"p":"has_pending_fragment","o":"SET","v":false}]}
+
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"，"}
+
+data: {"v":"油"}
+
+data: {"v":"猴"}
+
+data: {"v":"脚本"}
+
+data: {"v":"支持"}
+
+data: {"v":"引入"}
+
+data: {"v":"你"}
+
+data: {"v":"电脑"}
+
+data: {"v":"本"}
+
+data: {"v":"地的"}
+
+data: {"v":" `."}
+
+data: {"v":"js"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"文件"}
+
+data: {"v":"，"}
+
+data: {"v":"这"}
+
+data: {"v":"非常适合"}
+
+data: {"v":"将"}
+
+data: {"v":"公共"}
+
+data: {"v":"的工具"}
+
+data: {"v":"函数"}
+
+data: {"v":"抽"}
+
+data: {"v":"离"}
+
+data: {"v":"出来"}
+
+data: {"v":"，"}
+
+data: {"v":"方便"}
+
+data: {"v":"复用"}
+
+data: {"v":"[citation:10]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"实现"}
+
+data: {"v":"方法"}
+
+data: {"v":"很简单"}
+
+data: {"v":"，"}
+
+data: {"v":"通过"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"标签"}
+
+data: {"v":"指向"}
+
+data: {"v":"本地"}
+
+data: {"v":"文件"}
+
+data: {"v":"路径"}
+
+data: {"v":"即可"}
+
+data: {"v":"，"}
+
+data: {"v":"关键"}
+
+data: {"v":"步骤"}
+
+data: {"v":"有两"}
+
+data: {"v":"步"}
+
+data: {"v":"：\n\n"}
+
+data: {"v":"###"}
+
+data: {"v":" 🔧"}
+
+data: {"v":" "}
+
+data: {"v":"第一步"}
+
+data: {"v":"："}
+
+data: {"v":"添加"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"指向"}
+
+data: {"v":"本地"}
+
+data: {"v":"文件"}
+
+data: {"v":"\n"}
+
+data: {"v":"在你的"}
+
+data: {"v":"主"}
+
+data: {"v":"脚本"}
+
+data: {"v":"元"}
+
+data: {"v":"数据"}
+
+data: {"v":"块"}
+
+data: {"v":"中"}
+
+data: {"v":"，"}
+
+data: {"v":"新增"}
+
+data: {"v":"一行"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"指令"}
+
+data: {"v":"，"}
+
+data: {"v":"指向"}
+
+data: {"v":"你的"}
+
+data: {"v":"公共"}
+
+data: {"v":"工具"}
+
+data: {"v":"代码"}
+
+data: {"v":"**"}
+
+data: {"v":"本"}
+
+data: {"v":"地的"}
+
+data: {"v":"绝对"}
+
+data: {"v":"路径"}
+
+data: {"v":"**"}
+
+data: {"v":"[citation:2]"}
+
+data: {"v":"[citation:10]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"```"}
+
+data: {"v":"javascript"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" =="}
+
+data: {"v":"User"}
+
+data: {"v":"Script"}
+
+data: {"v":"=="}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"name"}
+
+data: {"v":"         "}
+
+data: {"v":"我的"}
+
+data: {"v":"主"}
+
+data: {"v":"脚本"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"namespace"}
+
+data: {"v":"   "}
+
+data: {"v":" http"}
+
+data: {"v":"://"}
+
+data: {"v":"t"}
+
+data: {"v":"am"}
+
+data: {"v":"per"}
+
+data: {"v":"mon"}
+
+data: {"v":"key"}
+
+data: {"v":".net"}
+
+data: {"v":"/\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"version"}
+
+data: {"v":"      "}
+
+data: {"v":"0"}
+
+data: {"v":"."}
+
+data: {"v":"1"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"description"}
+
+data: {"v":"  "}
+
+data: {"v":"引入"}
+
+data: {"v":"本地"}
+
+data: {"v":"公共"}
+
+data: {"v":"代码"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"author"}
+
+data: {"v":"      "}
+
+data: {"v":" You"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"match"}
+
+data: {"v":"       "}
+
+data: {"v":" https"}
+
+data: {"v":"://"}
+
+data: {"v":"*"}
+
+data: {"v":"/*\n"}
+
+data: {"v":"//"}
+
+data: {"v":" @"}
+
+data: {"v":"require"}
+
+data: {"v":"     "}
+
+data: {"v":" file"}
+
+data: {"v":"://"}
+
+data: {"v":"/"}
+
+data: {"v":"D"}
+
+data: {"v":":/"}
+
+data: {"v":"my"}
+
+data: {"v":"-s"}
+
+data: {"v":"cripts"}
+
+data: {"v":"/utils"}
+
+data: {"v":".js"}
+
+data: {"v":"  "}
+
+data: {"v":" //"}
+
+data: {"v":" "}
+
+data: {"v":"指向"}
+
+data: {"v":"你"}
+
+data: {"v":"本"}
+
+data: {"v":"地的"}
+
+data: {"v":"js"}
+
+data: {"v":"文件"}
+
+data: {"v":"，"}
+
+data: {"v":"注意"}
+
+data: {"v":"是"}
+
+data: {"v":"三个"}
+
+data: {"v":"斜"}
+
+data: {"v":"杠"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" =="}
+
+data: {"v":"/"}
+
+data: {"v":"User"}
+
+data: {"v":"Script"}
+
+data: {"v":"==\n\n"}
+
+data: {"v":"//"}
+
+data: {"v":" "}
+
+data: {"v":"你的"}
+
+data: {"v":"主"}
+
+data: {"v":"脚本"}
+
+data: {"v":"代码"}
+
+data: {"v":"\n"}
+
+data: {"v":"//"}
+
+data: {"v":" "}
+
+data: {"v":"这里"}
+
+data: {"v":"可以直接"}
+
+data: {"v":"调用"}
+
+data: {"v":" utils"}
+
+data: {"v":".js"}
+
+data: {"v":" "}
+
+data: {"v":"里"}
+
+data: {"v":"定义的"}
+
+data: {"v":"函数"}
+
+data: {"v":"\n"}
+
+data: {"v":"```\n\n"}
+
+data: {"v":">"}
+
+data: {"v":" **"}
+
+data: {"v":"路径"}
+
+data: {"v":"格式"}
+
+data: {"v":"说明"}
+
+data: {"v":"**"}
+
+data: {"v":"："}
+
+data: {"v":"`"}
+
+data: {"v":"file"}
+
+data: {"v":"://"}
+
+data: {"v":"/"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"后面"}
+
+data: {"v":"紧跟"}
+
+data: {"v":"文件的"}
+
+data: {"v":"**"}
+
+data: {"v":"绝对"}
+
+data: {"v":"路径"}
+
+data: {"v":"**"}
+
+data: {"v":"。"}
+
+data: {"v":"例如"}
+
+data: {"v":" Windows"}
+
+data: {"v":" "}
+
+data: {"v":"系统"}
+
+data: {"v":"是"}
+
+data: {"v":" `"}
+
+data: {"v":"file"}
+
+data: {"v":"://"}
+
+data: {"v":"/"}
+
+data: {"v":"D"}
+
+data: {"v":":/"}
+
+data: {"v":"my"}
+
+data: {"v":"-s"}
+
+data: {"v":"cripts"}
+
+data: {"v":"/utils"}
+
+data: {"v":".js"}
+
+data: {"v":"`"}
+
+data: {"v":"，"}
+
+data: {"v":"mac"}
+
+data: {"v":"OS"}
+
+data: {"v":" "}
+
+data: {"v":"系统"}
+
+data: {"v":"类似"}
+
+data: {"v":" `"}
+
+data: {"v":"file"}
+
+data: {"v":"://"}
+
+data: {"v":"/"}
+
+data: {"v":"Users"}
+
+data: {"v":"/"}
+
+data: {"v":"Your"}
+
+data: {"v":"Name"}
+
+data: {"v":"/D"}
+
+data: {"v":"ocuments"}
+
+data: {"v":"/utils"}
+
+data: {"v":".js"}
+
+data: {"v":"`"}
+
+data: {"v":"[citation:2]"}
+
+data: {"v":"[citation:10]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"###"}
+
+data: {"v":" ⚙"}
+
+data: {"v":"️"}
+
+data: {"v":" "}
+
+data: {"v":"第二步"}
+
+data: {"v":"："}
+
+data: {"v":"给"}
+
+data: {"v":"油"}
+
+data: {"v":"猴"}
+
+data: {"v":"插件"}
+
+data: {"v":"开启"}
+
+data: {"v":"本地"}
+
+data: {"v":"文件"}
+
+data: {"v":"访问"}
+
+data: {"v":"权限"}
+
+data: {"v":"\n"}
+
+data: {"v":"**"}
+
+data: {"v":"这是"}
+
+data: {"v":"最关键"}
+
+data: {"v":"的一"}
+
+data: {"v":"步"}
+
+data: {"v":"，"}
+
+data: {"v":"如果没有"}
+
+data: {"v":"设置"}
+
+data: {"v":"，"}
+
+data: {"v":"`"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"会"}
+
+data: {"v":"加载"}
+
+data: {"v":"失败"}
+
+data: {"v":"。**\n\n"}
+
+data: {"v":"1"}
+
+data: {"v":"."}
+
+data: {"v":" "}
+
+data: {"v":" **"}
+
+data: {"v":"Ch"}
+
+data: {"v":"rome"}
+
+data: {"v":"/"}
+
+data: {"v":"Edge"}
+
+data: {"v":" "}
+
+data: {"v":"浏览器"}
+
+data: {"v":"**"}
+
+data: {"v":"："}
+
+data: {"v":"在"}
+
+data: {"v":"浏览器"}
+
+data: {"v":"地址"}
+
+data: {"v":"栏"}
+
+data: {"v":"输入"}
+
+data: {"v":" `"}
+
+data: {"v":"chrome"}
+
+data: {"v":"://"}
+
+data: {"v":"ext"}
+
+data: {"v":"ensions"}
+
+data: {"v":"/"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"并"}
+
+data: {"v":"回车"}
+
+data: {"v":"，"}
+
+data: {"v":"找到"}
+
+data: {"v":" \""}
+
+data: {"v":"Tam"}
+
+data: {"v":"per"}
+
+data: {"v":"mon"}
+
+data: {"v":"key"}
+
+data: {"v":"\""}
+
+data: {"v":" "}
+
+data: {"v":"插件"}
+
+data: {"v":"，"}
+
+data: {"v":"点击"}
+
+data: {"v":"详情"}
+
+data: {"v":"，"}
+
+data: {"v":"打开"}
+
+data: {"v":"**"}
+
+data: {"v":"\""}
+
+data: {"v":"允许"}
+
+data: {"v":"访问"}
+
+data: {"v":"文件"}
+
+data: {"v":"网址"}
+
+data: {"v":"\""}
+
+data: {"v":"**"}
+
+data: {"v":"开关"}
+
+data: {"v":"[citation:3]"}
+
+data: {"v":"[citation:7]"}
+
+data: {"v":"[citation:10]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"2"}
+
+data: {"v":"."}
+
+data: {"v":" "}
+
+data: {"v":" **"}
+
+data: {"v":"Fire"}
+
+data: {"v":"fox"}
+
+data: {"v":" "}
+
+data: {"v":"浏览器"}
+
+data: {"v":"**"}
+
+data: {"v":"："}
+
+data: {"v":"Tam"}
+
+data: {"v":"per"}
+
+data: {"v":"mon"}
+
+data: {"v":"key"}
+
+data: {"v":" "}
+
+data: {"v":"通常"}
+
+data: {"v":"默认"}
+
+data: {"v":"支持"}
+
+data: {"v":"，"}
+
+data: {"v":"如果"}
+
+data: {"v":"遇到"}
+
+data: {"v":"问题"}
+
+data: {"v":"，"}
+
+data: {"v":"请"}
+
+data: {"v":"检查"}
+
+data: {"v":"浏览器"}
+
+data: {"v":"是否"}
+
+data: {"v":"允许"}
+
+data: {"v":"扩展"}
+
+data: {"v":"访问"}
+
+data: {"v":"文件"}
+
+data: {"v":"路径"}
+
+data: {"v":"[citation:4]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"###"}
+
+data: {"v":" 🚀"}
+
+data: {"v":" "}
+
+data: {"v":"进阶"}
+
+data: {"v":"："}
+
+data: {"v":"模块"}
+
+data: {"v":"化"}
+
+data: {"v":"项目"}
+
+data: {"v":"开发"}
+
+data: {"v":"\n"}
+
+data: {"v":"如果你的"}
+
+data: {"v":"项目"}
+
+data: {"v":"比较复杂"}
+
+data: {"v":"，"}
+
+data: {"v":"例如"}
+
+data: {"v":"需要"}
+
+data: {"v":"引入"}
+
+data: {"v":"多个"}
+
+data: {"v":"公共"}
+
+data: {"v":"文件"}
+
+data: {"v":"或"}
+
+data: {"v":"使用"}
+
+data: {"v":"第三方"}
+
+data: {"v":" npm"}
+
+data: {"v":" "}
+
+data: {"v":"包"}
+
+data: {"v":"，"}
+
+data: {"v":"手动"}
+
+data: {"v":"维护"}
+
+data: {"v":"大量的"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"会比较"}
+
+data: {"v":"麻烦"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"推荐"}
+
+data: {"v":"使用"}
+
+data: {"v":" **"}
+
+data: {"v":"构建"}
+
+data: {"v":"工具"}
+
+data: {"v":"（"}
+
+data: {"v":"如"}
+
+data: {"v":" Web"}
+
+data: {"v":"pack"}
+
+data: {"v":"）"}
+
+data: {"v":"**"}
+
+data: {"v":" "}
+
+data: {"v":"来"}
+
+data: {"v":"搭建"}
+
+data: {"v":"模块"}
+
+data: {"v":"化"}
+
+data: {"v":"开发"}
+
+data: {"v":"环境"}
+
+data: {"v":"[citation:3]"}
+
+data: {"v":"：\n"}
+
+data: {"v":"*"}
+
+data: {"v":"  "}
+
+data: {"v":" **"}
+
+data: {"v":"原始"}
+
+data: {"v":"模式"}
+
+data: {"v":"**"}
+
+data: {"v":"："}
+
+data: {"v":"在"}
+
+data: {"v":" `"}
+
+data: {"v":"utils"}
+
+data: {"v":".js"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"里"}
+
+data: {"v":"定义"}
+
+data: {"v":"函数"}
+
+data: {"v":"，"}
+
+data: {"v":"需要"}
+
+data: {"v":"哪个"}
+
+data: {"v":"就在"}
+
+data: {"v":"主"}
+
+data: {"v":"脚本"}
+
+data: {"v":"里"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"哪个"}
+
+data: {"v":"。\n"}
+
+data: {"v":"*"}
+
+data: {"v":"  "}
+
+data: {"v":" **"}
+
+data: {"v":"进阶"}
+
+data: {"v":"模式"}
+
+data: {"v":"**"}
+
+data: {"v":"："}
+
+data: {"v":"使用"}
+
+data: {"v":" Web"}
+
+data: {"v":"pack"}
+
+data: {"v":"、"}
+
+data: {"v":"V"}
+
+data: {"v":"ite"}
+
+data: {"v":" "}
+
+data: {"v":"等"}
+
+data: {"v":"工具"}
+
+data: {"v":"，"}
+
+data: {"v":"将"}
+
+data: {"v":"你的"}
+
+data: {"v":"公共"}
+
+data: {"v":"代码"}
+
+data: {"v":"和"}
+
+data: {"v":"依赖"}
+
+data: {"v":"库"}
+
+data: {"v":"**"}
+
+data: {"v":"打包"}
+
+data: {"v":"成一个"}
+
+data: {"v":"完整的"}
+
+data: {"v":" `"}
+
+data: {"v":"dist"}
+
+data: {"v":"/index"}
+
+data: {"v":".js"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"文件"}
+
+data: {"v":"**"}
+
+data: {"v":"，"}
+
+data: {"v":"然后"}
+
+data: {"v":"只需"}
+
+data: {"v":"在主"}
+
+data: {"v":"脚本"}
+
+data: {"v":"中"}
+
+data: {"v":"通过"}
+
+data: {"v":" `"}
+
+data: {"v":"@"}
+
+data: {"v":"require"}
+
+data: {"v":" file"}
+
+data: {"v":"://"}
+
+data: {"v":"..."}
+
+data: {"v":"/"}
+
+data: {"v":"dist"}
+
+data: {"v":"/index"}
+
+data: {"v":".js"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"引入"}
+
+data: {"v":"这一个"}
+
+data: {"v":"文件"}
+
+data: {"v":"即可"}
+
+data: {"v":"。"}
+
+data: {"v":"这样做"}
+
+data: {"v":"既能"}
+
+data: {"v":"享受"}
+
+data: {"v":" `"}
+
+data: {"v":"import"}
+
+data: {"v":"/"}
+
+data: {"v":"export"}
+
+data: {"v":"`"}
+
+data: {"v":" "}
+
+data: {"v":"的"}
+
+data: {"v":"模块"}
+
+data: {"v":"化"}
+
+data: {"v":"语法"}
+
+data: {"v":"，"}
+
+data: {"v":"又能"}
+
+data: {"v":"保持"}
+
+data: {"v":"最终"}
+
+data: {"v":"发布的"}
+
+data: {"v":"简洁"}
+
+data: {"v":"[citation:3]"}
+
+data: {"v":"。\n\n"}
+
+data: {"v":"修改"}
+
+data: {"v":"完"}
+
+data: {"v":"公共"}
+
+data: {"v":"文件"}
+
+data: {"v":"后"}
+
+data: {"v":"记得"}
+
+data: {"v":"保存"}
+
+data: {"v":"，"}
+
+data: {"v":"需要"}
+
+data: {"v":"刷新"}
+
+data: {"v":"一下"}
+
+data: {"v":"目标"}
+
+data: {"v":"网页"}
+
+data: {"v":"才能"}
+
+data: {"v":"看到"}
+
+data: {"v":"最新"}
+
+data: {"v":"效果"}
+
+data: {"v":"[citation:7]"}
+
+data: {"v":"。"}
+
+data: {"v":"如果你"}
+
+data: {"v":"在"}
+
+data: {"v":"开启"}
+
+data: {"v":"权限"}
+
+data: {"v":"或"}
+
+data: {"v":"路径"}
+
+data: {"v":"引用"}
+
+data: {"v":"时"}
+
+data: {"v":"遇到"}
+
+data: {"v":"具体的"}
+
+data: {"v":"报"}
+
+data: {"v":"错"}
+
+data: {"v":"，"}
+
+data: {"v":"可以"}
+
+data: {"v":"告诉我"}
+
+data: {"v":"错误"}
+
+data: {"v":"提示"}
+
+data: {"v":"，"}
+
+data: {"v":"我"}
+
+data: {"v":"帮你"}
+
+data: {"v":"看看"}
+
+data: {"v":"具体"}
+
+data: {"v":"是什么"}
+
+data: {"v":"问题"}
+
+data: {"v":"。"}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"accumulated_token_usage","v":669},{"p":"quasi_status","v":"FINISHED"}]}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+
+event: update_session
+data: {"updated_at":1776951937.220074}
+
+event: title
+data: {"content":"油猴脚本引入本地JS文件"}
+
+event: close
+data: {"click_behavior":"none","auto_resume":false}
+

@@ -1,0 +1,24 @@
+{
+    "code": 0,
+    "msg": "",
+    "data": {
+        "biz_code": 0,
+        "biz_msg": "",
+        "biz_data": {
+            "chat_session": {
+                "id": "eb6e9a4d-7d28-4fa2-a009-23d083bab095",
+                "seq_id": 199272950,
+                "agent": "chat",
+                "model_type": "default",
+                "title": null,
+                "title_type": "WIP",
+                "version": 0,
+                "current_message_id": null,
+                "pinned": false,
+                "inserted_at": 1777109750.728,
+                "updated_at": 1777109750.728
+            },
+            "ttl_seconds": 259200
+        }
+    }
+}
