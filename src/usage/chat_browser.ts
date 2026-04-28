@@ -17,7 +17,7 @@ interface ChatResult {
 async function createBrowserClient(userDataDir?: string) {
     const launched = await launchChromeForDebugging({
         userDataDir: userDataDir,
-        headless: true,
+        headless: false,
         detached: true,
     });
     const browser = await chromium.connectOverCDP(launched.cdpUrl);
@@ -43,6 +43,7 @@ async function chatWithDeepSeek(
         message: string;
         sessionId?: string;
         parentMessageId?: number | null;
+        fileIds?: string[];
         onDelta?: (type: string, delta: string) => void,
     },
 ): Promise<ChatResult> {
@@ -53,6 +54,7 @@ async function chatWithDeepSeek(
         searchEnabled: true,
         thinkingEnabled: false,
         parentMessageId: params.parentMessageId ?? null,
+        fileIds: params.fileIds
     });
     // 基于浏览器的client，返回结果没有流式
     const parser = new DeepseekStreamParser(params.onDelta);
@@ -110,7 +112,7 @@ async function runInteractiveChat(userDataDir?: string, initialMessage?: string,
     });
 
     process.stdout.write("Interactive browser chat mode. Press Ctrl+C to exit.\n");
-
+    // const f = await client.uploadFile("2407.04997v1.pdf");
     while (true) {
         let message: string;
         if (initialMessage) {
@@ -125,6 +127,7 @@ async function runInteractiveChat(userDataDir?: string, initialMessage?: string,
             message,
             sessionId,
             parentMessageId,
+            // fileIds: [f]
         });
         if (result.thinking) {
             process.stdout.write(`\x1b[90m${result.thinking}\x1b[0m\n`);

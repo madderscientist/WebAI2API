@@ -287,7 +287,7 @@ export class DeepSeekWebClient {
     }
 
     // 发送文件，返回 fileId。上传后需要轮询文件状态，直到成功或失败
-    async uploadFile(fileData: Buffer, fileName: string) {
+    async uploadFile(fileData: Buffer, fileName: string): Promise<string> {
         if (this.verbose) console.log(`[DeepSeekWebClient] Uploading file ${fileName} (${fileData.length} bytes)...`);
         const targetPath = "/api/v0/file/upload_file";
         const challenge = await this.createPowChallenge(targetPath);
@@ -328,6 +328,7 @@ export class DeepSeekWebClient {
         let attempts = 0;
         while (attempts < 30) {
             const pollRes = await fetch(
+                // 多个文件就是?file_ids=...&file_ids=...&...
                 `https://chat.deepseek.com/api/v0/file/fetch_files?file_ids=${fileId}`,
                 {
                     headers: this.headers,

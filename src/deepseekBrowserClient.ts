@@ -134,12 +134,111 @@ export class DeepSeekBrowserClient {
         return page.locator('textarea[autocomplete="off"]').fill(text).then(() => true).catch(() => false);
     }
 
+    private async _uploadFile(filePath: string): Promise<string> {
+        const page = await this.page;
+        // 如果当前页面不是deepseek则先跳转
+        if (!page.url().includes("deepseek.com")) {
+            await page.goto('https://chat.deepseek.com');
+        }
+        let fileId: string | null = null;
+
+        // 监听上传响应获取 fileId
+        const uploadHandler = (response: { url: () => string; ok: () => boolean; json: () => Promise<unknown> }) => {
+            if (!response.url().includes("/api/v0/file/upload_file")) return;
+            if (!response.ok()) return;
+            response.json().then((data: unknown) => {
+                const parsed = data as { data?: { biz_data?: { id?: string, file_name?: string } } };
+                if (parsed.data?.biz_data?.file_name !== filePath.split('/').pop()) {
+                    return; // 文件名不匹配，可能不是目标响应
+                }
+                fileId = parsed.data?.biz_data?.id ?? null;
+                page.off("response", uploadHandler);
+            }).catch(() => {
+                // 忽略解析错误
+            });
+        };
+
+        page.on("response", uploadHandler);
+
+        try {
+            // 触发上传
+            await page.setInputFiles('input[type="file"][multiple]', filePath);
+
+            // 等待获取 fileId
+            let attempts = 0;
+            while (!fileId && attempts < 30) {
+                await new Promise((r) => setTimeout(r, 200));
+                attempts++;
+            }
+            page.off("response", uploadHandler);
+            if (!fileId) throw new Error("Failed to get fileId from upload response");
+
+            // 监听 fetch_files 响应直到文件处理完成
+            const { promise, resolve, reject } = Promise.withResolvers<void>();
+            const fetchFilesHandler = (response: { url: () => string; ok: () => boolean; json: () => Promise<unknown> }) => {
+                const url = response.url();
+                if (!url.includes("fetch_files") || !url.includes(fileId!)) return;
+                if (!response.ok()) return;
+                response.json().then((data: unknown) => {
+                    const parsed = data as { data?: { biz_data?: { files?: Array<{ id: string; status: string }> } } };
+                    for (const file of parsed.data?.biz_data?.files ?? []) {
+                        if (file.id !== fileId) continue;
+                        if (file.status === "PARSING") continue;
+                        if (file.status === "SUCCESS") {
+                            resolve();
+                            return;
+                        }
+                        if (file.status === "FAILED") {
+                            reject(new Error(`File processing failed for fileId ${fileId}`));
+                            return;
+                        }
+                        if (file?.status === "CONTENT_EMPTY") {
+                            reject(new Error(`File processing failed due to empty content for fileId ${fileId}`));
+                            return;
+                        }
+                    }
+                }).catch(() => {
+                    // 忽略解析错误
+                });
+            };
+            page.on("response", fetchFilesHandler);
+
+            try {
+                // 等待文件处理完成，超时为60秒
+                await Promise.race([
+                    promise,
+                    new Promise<void>((_, reject) =>
+                        setTimeout(() => reject(new Error(`File upload polling timed out for ${fileId}`)), 60000)
+                    )
+                ]);
+                return fileId;
+            } catch (error) {
+                // 失败则取消上传的文件 其实没必要因为每次对话都会刷新页面 文件是可以跨对话的
+                await page.evaluate(() => {
+                    const container = document.querySelector('._75e1990');
+                    if (!container) window.location.reload(); // 无法找到删除按钮，刷新页面重试
+                    // 删除最后一个 由于本函数只上传一个 所以删除最后一个就是刚上传的那个
+                    (container!.children[container!.childElementCount - 1]?.querySelector('.ds-icon') as HTMLElement)?.click();
+                });
+                throw error;
+            } finally {
+                page.off("response", fetchFilesHandler);
+            }
+        } finally {
+            page.off("response", uploadHandler);
+        }
+    }
+
+    async uploadFile(filePath: string): Promise<string> {
+        return this.enqueueTask<string>(() => this._uploadFile(filePath));
+    }
+
     // 删除会话
     private async _deleteSession(sessionId: string): Promise<boolean | null> {
         const page = await this.page;
 
         // 监听请求，判断是否删除成功
-        const {promise, resolve, reject} = Promise.withResolvers<boolean>();
+        const { promise, resolve, reject } = Promise.withResolvers<boolean>();
         const onResponse = (response: { url: () => string; request: () => { method: () => string; }; ok: () => boolean; }) => {
             if (!response.url().includes("/api/v0/chat_session/delete")) return;
             page.off("response", onResponse);
