@@ -74,7 +74,12 @@ export async function auth(params?: {
     // 启动浏览器 等到调试端口准备就绪
     if (params?.launchBrowser) {
         onProgress("Launching a dedicated browser profile for DeepSeek...");
-        const launchedBrowser = await launchChromeForDebugging({ cdpPort, userDataDir: params.userDataDir });
+        const launchedBrowser = await launchChromeForDebugging({
+            cdpPort,
+            userDataDir: params.userDataDir,
+            headless: false,
+            detached: false,
+        });
         cdpUrl = launchedBrowser.cdpUrl;
         onProgress(`Launched browser with debugging port at ${cdpUrl}`);
         close = async () => {

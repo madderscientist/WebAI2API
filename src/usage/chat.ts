@@ -53,6 +53,7 @@ async function parseDeepSeekSse(
 
     let messageId = parser.decoder.state.message.response?.message_id;
     if (typeof messageId === "number") {
+        if (!Number.isFinite(messageId)) messageId = null;
     } else if (typeof messageId === "string") {
         const parsed = Number(messageId);
         messageId = Number.isFinite(parsed) ? parsed : null;

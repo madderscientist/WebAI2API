@@ -244,9 +244,12 @@ export class DeepSeekBrowserClient {
                 // 发起请求
                 const inputOk = await this.withAbort(this.textInput(params.message), params.signal);
                 if (!inputOk) throw new Error("Failed to input message into DeepSeek textbox.");
-                const responsePromise = page.waitForResponse((response) => (
-                    response.url().includes("/api/v0/chat/completion") && response.request().method() === "POST"
-                ));
+                const responsePromise = page.waitForResponse((response) => {
+                    if (!response.url().includes("/api/v0/chat/completion")) return false;
+                    // 用sessionId 核对是否为目标请求
+                    const postData = this.parseJsonSafely(response.request().postData() ?? "{}") ?? {};
+                    return postData.chat_session_id === capturedSessionId;
+                });
                 const sent = await this.withAbort(this.send(), params.signal);
                 if (!sent) throw new Error("Failed to click DeepSeek send button.");
 
