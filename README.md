@@ -4,14 +4,18 @@
 - 和 [`openclaw-zero-token`](https://github.com/linuxhsj/openclaw-zero-token) 的关系：API逆向参考了其代码（特别是PowChallenge）；没有openclaw的部分，只有API的封装，且专门用于Windows。
 - 和 [`foxhui:WebAI2API`](https://github.com/foxhui/WebAI2API) 的关系：目标一致（都是API封装，所以抄了它的项目名），但是我认为它对网页AI调用的开发还不够。且有很多花里胡哨的东西（太重）。
 
-目前只打算针对deepseek进行封装。
+目前只打算针对deepseek进行封装。好处是可以深度定制，坏处是没有多模态。
 
 ## 概述
-> 【注意】这里调用的是 DeepSeek Web 接口，不是官方 `api.deepseek.com` API Key 接口。
+> [!NOTE]
+> 本项目调用的是 DeepSeek Web 接口，不是官方 `api.deepseek.com` API Key 接口。
 
-网页AI的好处：不用钱，适合单人使用；无需自己管理记忆（上面提到的两个库没有很好发挥“网页AI自带记忆管理”这个强项）。
+- 网页AI的好处：免费，适合单人使用；无需自己管理上下文（上面提到的两个库没有很好发挥“网页AI自带记忆管理”这个强项）。
+- 坏处：只能写用户提示词；文件支持较差；要和官方博弈。
 
-坏处：只能写用户提示词（但可以用提示词工程模拟其他的高级功能）；文件支持较差；要和官方博弈。
+项目特色：
+- 利用网页记忆管理实现了 responses API 的封装
+- 利用提示词工程实现了 tool-calling
 
 ## 安装
 目前只有Windows
@@ -24,7 +28,7 @@
 pnpm install
 ```
 
-## 使用方式
+## 基本使用
 
 ### 1. 抓取浏览器凭证
 拉起一个独立浏览器：
@@ -93,7 +97,7 @@ pnpm chat "你好" --delete
 ```
 
 ## HTTP 服务
-由于QQbot使用了nonebot，跨语言调用需要走网络请求。传统封装仅仅是 `completions` API，但由于网页AI自带记忆管理，因此 `Responses` API 更为合适。本项目两个都实现了，并用提示词工程实现了工具调用。最终效果（用python调用接口）↓
+由于QQbot使用了nonebot，跨语言调用需要走网络请求。传统封装仅仅是 [`completions` API](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)，但由于网页AI自带记忆管理，因此 [`Responses` API](https://developers.openai.com/api/reference/resources/responses/methods/create) 更为合适。本项目两个都实现了，并用提示词工程实现了工具调用。最终效果（用python调用接口）↓
 ![测试responsesAPI的结果](READMEsrc/testResponsesAPI.png)
 
 ### 启动
@@ -105,16 +109,17 @@ pnpm run server -p 8787 --credentials="..." --browser --user-data-dir="..."
 - `browser`: 是否使用浏览器封装，默认使用API封装
 - `user-data-dir`: 使用浏览器封装时的用户配置文件夹。默认用`auth`的默认路径
 
-为了安全，默认只处理本地请求。可以在环境变量 `MYDS_IP_ALLOWLIST` 中添加百名单
+为了安全，默认只处理本地请求。可以在环境变量 `MYDS_IP_ALLOWLIST` 中添加白名单。
 
 ### 说明
-- completions: 每次请求相当于新开对话，需要自己维护上下文。调用完成会自动删除session。
-- responses: 利用网页AI的记忆管理复用对话，不需要自己维护上下文，每次只需要发送增量。
+- `completions`: 每次请求相当于新开对话，需要自己维护上下文。调用完成会自动删除session。调用示例请查看 [`test_completions.py`](src/test/test_completions.py)
+- `responses`: 利用网页AI的记忆管理复用对话，不需要自己维护上下文，每次只需要发送增量。不会自动删除会话。调用示例请查看 [`test_responses.py`](src/test/test_responses.py)
 
 和官方调用不同，本项目决定不了请求的 `id`，因此采用了以下的策略：
 - 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。而具体message的id被我取消了。
 - 工具调用的id就是源码。返回调用结果时会将id和结果一起输出，这样AI就知道清晰的对应关系了
 
+个人建议不要用流式返回。对于API封装，流式返回就是直接照搬模型的输出，不会进行工具的识别。而对非流式请求，本项目会提取出工具使用并体现在返回的JSON中。而对于浏览器封装，在playwright限制下，永远没有真正的流式（无法捕获流；只能一次性得到所有输出），即使`stream=true`，也是强行包装为流进行输出，甚至只有一个数据块。最后，流式输出是我让AI写的，没有审查和深度测试过。
 
 > [!CAUTION]
 > **免责声明**

@@ -86,3 +86,12 @@ export function sendSseDone(res: ServerResponse) {
     res.write("data: [DONE]\n\n");
     res.end();
 }
+
+export function errorResponse(message: string, statusCode = 400, code?: string) {
+    const error: Record<string, unknown> = {
+        message,
+        type: statusCode >= 500 ? "server_error" : "invalid_request_error",
+    };
+    if (code !== undefined) error.code = code;
+    return { error };
+}

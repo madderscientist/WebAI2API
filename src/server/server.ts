@@ -11,16 +11,16 @@ import {
     sendSseData,
     sendSseDone,
     sendSseHeaders,
+    errorResponse
 } from "./httpUtils.js";
-import { buildCompletionsChunk, buildResponseData, errorResponse, toNumberOrNull } from "./responseBuilders.js";
 import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
 import { MODEL_LIST, getModelConfig } from "./models.js";
-import { ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completionsType.js";
+import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completionsType.js";
 import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesCreateResponse } from "./responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
 
-const DEFAULT_PORT = Number(process.env.PORT ?? process.env.MYDS_PORT ?? 8787);
+const DEFAULT_PORT = 8787;
 
 async function handleModels(res: ServerResponse) {
     sendJson(res, 200, {
@@ -32,6 +32,16 @@ async function handleModels(res: ServerResponse) {
             owned_by: "localhost",
         })),
     });
+}
+
+function toNumberOrNull(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
 }
 
 async function parseResultFromStream(
@@ -245,16 +255,19 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
             });
         });
 
+        // 流式输出的最后一条消息 只包含元数据
         sendSseData(res, {
             type: "response.completed",
-            response: buildResponseData({
+            response: {
+                id: buildResponseId(runResult.sessionId, finalParsed.messageId),
+                object: "response",
+                created_at: Math.floor(Date.now() / 1000),
+                status: "completed",
                 model: modelConfig.model,
-                text: finalParsed.text,
-                thinking: finalParsed.thinking,
-                messageId: finalParsed.messageId,
-                sessionId: runResult.sessionId,
-                tokenUsage: finalParsed.accumulated_token_usage,
-            }),
+                ...(finalParsed.accumulated_token_usage >= 0 && { 
+                    usage: { total_tokens: finalParsed.accumulated_token_usage } 
+                }),
+            },
         });
         sendSseDone(res);
     } catch (error) {

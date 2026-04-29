@@ -238,3 +238,25 @@ export function message2CompletionsMessage(msg: string, matchTool = false): Chat
 
     return message;
 }
+
+// 流式输出块
+export function buildCompletionsChunk(params: {
+    requestId: string;
+    model: string;
+    delta: Record<string, unknown>;
+    finishReason: string | null;
+}) {
+    return {
+        id: params.requestId,
+        object: "chat.completion.chunk",
+        created: Math.floor(Date.now() / 1000),
+        model: params.model,
+        choices: [
+            {
+                index: 0,
+                delta: params.delta,
+                finish_reason: params.finishReason,
+            },
+        ],
+    };
+}
