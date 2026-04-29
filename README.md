@@ -93,7 +93,28 @@ pnpm chat "你好" --delete
 ```
 
 ## HTTP 服务
-todo
+由于QQbot使用了nonebot，跨语言调用需要走网络请求。传统封装仅仅是 `completions` API，但由于网页AI自带记忆管理，因此 `Responses` API 更为合适。本项目两个都实现了，并用提示词工程实现了工具调用。最终效果（用python调用接口）↓
+![测试responsesAPI的结果](READMEsrc/testResponsesAPI.png)
+
+### 启动
+```bash
+pnpm run server -p 8787 --credentials="..." --browser --user-data-dir="..."
+```
+- `port`: 服务端口，默认8787
+- `credentials`: 使用API封装时的凭证json文件路径
+- `browser`: 是否使用浏览器封装，默认使用API封装
+- `user-data-dir`: 使用浏览器封装时的用户配置文件夹。默认用`auth`的默认路径
+
+为了安全，默认只处理本地请求。可以在环境变量 `MYDS_IP_ALLOWLIST` 中添加百名单
+
+### 说明
+- completions: 每次请求相当于新开对话，需要自己维护上下文。调用完成会自动删除session。
+- responses: 利用网页AI的记忆管理复用对话，不需要自己维护上下文，每次只需要发送增量。
+
+和官方调用不同，本项目决定不了请求的 `id`，因此采用了以下的策略：
+- 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。而具体message的id被我取消了。
+- 工具调用的id就是源码。返回调用结果时会将id和结果一起输出，这样AI就知道清晰的对应关系了
+
 
 > [!CAUTION]
 > **免责声明**

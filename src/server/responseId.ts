@@ -17,10 +17,14 @@ export function buildResponseId(sessionId: string | null, messageId: number | nu
 export function parseResponseId(value: string): ParsedResponseId {
     const raw = value.trim();
     const separatorIndex = raw.indexOf("|");
-    if (separatorIndex < 0) return { sessionId: raw, messageId: null };
+    if (separatorIndex < 0) {
+        if (raw.length < 10) return { sessionId: null, messageId: null };
+        return { sessionId: raw, messageId: null };
+    }
 
     const sessionId = raw.slice(0, separatorIndex).trimEnd();
-    if (!sessionId) return { sessionId: null, messageId: null };
+    // ds的sessionId长度很长
+    if (sessionId.length < 10) return { sessionId: null, messageId: null };
 
     let messageId: number | null = null;
     const messageRaw: string | null = raw.slice(separatorIndex + 1).trimStart();

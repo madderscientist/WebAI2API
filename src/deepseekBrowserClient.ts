@@ -12,6 +12,8 @@ interface ChatCompletionResult {
 }
 
 export class DeepSeekBrowserClient {
+    verbose = true;  // 是否输出调试日志
+
     browser: Browser;
     page: Promise<Page>;
     private running = false;
@@ -113,18 +115,11 @@ export class DeepSeekBrowserClient {
     // 发送按钮
     private async send(): Promise<boolean> {
         const page = await this.page;
-        const coords = await page.evaluate(() => {
-            const fileInput = document.querySelector('input[type="file"][multiple]');
-            const target = fileInput?.nextElementSibling?.querySelector('[aria-disabled="false"]');
-            if (!target) return null;
-            const rect = (target as HTMLElement).getBoundingClientRect();
-            return {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-        });
-        if (!coords) return false;
-        await page.mouse.click(coords.x, coords.y);
+        // 依赖input进行定位
+        const target = page.locator('input[type="file"][multiple] + * [aria-disabled="false"]').first();
+        if (!await target.count()) return false;
+        await target.scrollIntoViewIfNeeded();
+        await target.click();
         return true;
     }
 
@@ -135,6 +130,7 @@ export class DeepSeekBrowserClient {
     }
 
     private async _uploadFile(filePath: string): Promise<string> {
+        if (this.verbose) console.log(`[DeepSeekBrowserClient] Starting file upload for ${filePath}`);
         const page = await this.page;
         // 如果当前页面不是deepseek则先跳转
         if (!page.url().includes("deepseek.com")) {
@@ -235,6 +231,7 @@ export class DeepSeekBrowserClient {
 
     // 删除会话
     private async _deleteSession(sessionId: string): Promise<boolean | null> {
+        if (this.verbose) console.log(`[DeepSeekBrowserClient] Deleting session: ${sessionId}`);
         const page = await this.page;
 
         // 监听请求，判断是否删除成功
@@ -309,6 +306,7 @@ export class DeepSeekBrowserClient {
         signal?: AbortSignal;
     }) {
         return this.enqueueTask<ChatCompletionResult>(async () => {
+            if (this.verbose) console.log(`[DeepSeekBrowserClient] Starting chat completion.`);
             const page = await this.page;
             const sessionIdFromUrl = await this.withAbort(this._switchSession(params.sessionId ?? ""), params.signal);
             let capturedSessionId = sessionIdFromUrl;

@@ -13,13 +13,16 @@ export interface ServerClientOptions {
 
 export interface ServerChatRequest {
     message: string;
-    sessionId?: string;
-    modelType?: string | null;
     fileIds?: string[];
+
+    sessionId?: string;
+    parentMessageId?: number | null;
+
+    modelType?: string | null;
     searchEnabled?: boolean;
     thinkingEnabled?: boolean;
+
     preempt?: boolean;
-    parentMessageId?: number | null;
     signal?: AbortSignal;
 }
 
@@ -94,6 +97,7 @@ class BrowserServerClient implements ServerClient {
         this.browser = browser;
         this.launchedProcess = processRef;
         this.client = client;
+        client.verbose = false;
     }
 
     static async create(userDataDir?: string): Promise<BrowserServerClient> {
