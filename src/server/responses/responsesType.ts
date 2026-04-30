@@ -16,8 +16,7 @@ export interface ResponsesCreateRequest {
 // 只选了这几个
 export type ResponsesInputItem =
     | EasyInputMessage
-    | FunctionCallOutput
-    | LocalShellCallOutput;
+    | FunctionCallOutput;
 
 // 消息类型
 export interface EasyInputMessage {
@@ -52,13 +51,6 @@ export interface FunctionCallOutput {
     output: string;
     type: 'function_call_output';
     // id?: string;
-    status?: callStatus;
-}
-
-export interface LocalShellCallOutput {
-    id: string;
-    output: string;
-    type: 'local_shell_call_output';
     status?: callStatus;
 }
 
@@ -155,7 +147,7 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     }
 }
 
-// 处理 message function_call_output local_shell_call_output
+// 处理 message function_call_output
 function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRole = false): string {
     if (typeof items === 'string') return items;
     if (items.length === 0) return '';
@@ -182,8 +174,6 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
             messages.push(...easyInputToText(item as EasyInputMessage));
         } else if (item.type === 'function_call_output') {
             messages.push(`[user tool call result]:\n<call>${item.call_id}</call>\n<output>${item.output}</output>${item.status ? `\n<status>${item.status}</status>` : ''}`);
-        } else if (item.type === 'local_shell_call_output') {
-            messages.push(`[user local shell call result]:\n<shell>\n${item.id}\n${item.output}\n</shell>`);
         }
     }
     // 如果只有一项且是用户消息则不需要role标签
@@ -196,7 +186,7 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
 // 暂时不处理文件
 
 
-export function message2ResponsesOutput(msg: string, matchTool = false, matchShell = false): ResponseOutputItem[] {
+export function message2ResponsesOutput(msg: string, mark: string, matchTool = false): ResponseOutputItem[] {
     const outputs: ResponseOutputItem[] = [];
 
     type ParsedSegment = {
@@ -270,7 +260,7 @@ export function message2ResponsesOutput(msg: string, matchTool = false, matchShe
 
     // 整理id
     for (let i = 0; i < outputs.length; i++) {
-        outputs[i].id += i;
+        outputs[i].id += `${mark}_${i}`;    // 需要保持全局唯一
     }
     return outputs;
 }

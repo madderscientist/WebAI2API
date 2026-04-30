@@ -213,17 +213,25 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
 
         // 暂时先等全部结果 真流式输出有些麻烦
         const parsed = await parseResultFromStream(runResult.body);
+
+        // 估计token消耗 这是codex需要的值
+        let input_token_est = normalized.message.length >> 2; // 4字符1token的经验值
+        let output_token_est = (parsed.text.length + parsed.thinking.length) >> 2;
+        input_token_est = Math.floor(parsed.accumulated_token_usage * input_token_est / (input_token_est + output_token_est));
+        output_token_est = parsed.accumulated_token_usage - input_token_est;
+
+        const id = buildResponseId(requestId, parsed.messageId);
         const result: ResponsesResponse = {
-            id: buildResponseId(requestId, parsed.messageId),
+            id,
             object: "response",
             created_at: Math.floor(Date.now() / 1000),
             status: "completed",
             model: modelConfig.model,
-            output: message2ResponsesOutput(parsed.text, useTool, true),
+            output: message2ResponsesOutput(parsed.text, id, useTool),
             usage: {
-                total_tokens: parsed.accumulated_token_usage + 100,
-                input_tokens: 100,
-                output_tokens: parsed.accumulated_token_usage,
+                total_tokens: parsed.accumulated_token_usage,
+                input_tokens: input_token_est,
+                output_tokens: output_token_est,
             }
         };
         if (rawInput.stream === true) {

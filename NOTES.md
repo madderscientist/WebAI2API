@@ -51,7 +51,34 @@ API逆向的缺点是得和厂商保持一致，特别是如果 `pow_challenge` 
 
 prompt构造时，我选择了XML套JSON。因为这样正则表达式容易定位，我个人认为这样边界也比较清晰，AI可能更容易读（至少我容易读了）。没有进行实验。
 
-由于 `completions` 没有ShellCall的功能，所以我尝试提供了执行代码的tool。实测发现如果模型给出的python容易有缩进问题，所以改成js了。 `completions` 确实不适合toolCall，因为返回中toolcall和message是两个字段，那我到底要不要将message中的toolcall源文本删除呢？我没有删除，因为删除了影响阅读（工具调用可能在文本中间；当然可以用更复杂的判断实现更好的输出，但我懒得做了），此时 `tool_calls` 字段其实工具调用识别结果。
+我尝试提供了执行代码的tool。实测发现如果模型给出的python容易有缩进问题，所以改成js了。 `completions` 确实不适合toolCall，因为返回中toolcall和message是两个字段，那我到底要不要将message中的toolcall源文本删除呢？我没有删除，因为删除了影响阅读（工具调用可能在文本中间；当然可以用更复杂的判断实现更好的输出，但我懒得做了），此时 `tool_calls` 字段其实工具调用识别结果。
+
+## 接入CodeX
+CodeX只接收ResponsesAPI，刚好。捣鼓了半个下午把ResponsesAPI的流式返回写好了，接入CodeX果然可以！
+
+由于本项目是prompt模拟toolcall，所以要先获取所有响应再解析，最后才能将所有结果返回。所以模拟流式响应时，我略过了所有`delta`事件，只保留了结构的创建，数据的填充直接用`done`完成。最后`complete`返回了所有数据。
+
+此时可以在网页对话中看到全过程。很遗憾，虽然使用的是自动上下文的responsesAPI，但是依然每次发起一个新的对话。观察了CodeX的prompt，发现是markdown、XML混着用。说实话看到对话框里那么长的prompt给我吓坏了（心疼DS一秒钟）。
+
+官方文档中，非流式的ResponsesAPI有`ShellCall`这个返回，但是流响应中没有对应的事件；而CodeX是可以用shell的。当时还很疑惑，现在真相揭晓：有一个shell的tool。
+
+
+## token消耗
+codex需要token统计。于是我观察了一下deepseek给的`"accumulated_token_usage","v":45`是什么含义。我在一个session进行了如下对话：
+```
+我:回复一个字
+DS:好
+我:回复一个字
+DS:好
+我:回复一个字
+DS:好
+我:回复一个字
+DS:好
+我:回复一个字
+DS:好
+```
+这五次的token消耗为：34 56 78 100 122，可见每次增加22，说明一次来回就是22个token，因此系统提示词大概12个token。
+实际代码中，用了"四字符一token"的经验值。
 
 ## 收获
 - 第一次接触 `playwright` ，学了一些浏览器相关的基础
