@@ -101,14 +101,19 @@ while True:
         if item_type in ("message", "reasoning"):
             content = item.get("content")
             if content:
-                assistant_text_parts.append(content)
+                for part in content:
+                    if part.get("type") == "output_text":
+                        assistant_text_parts.append(part.get("text", ""))
+                    else:
+                        assistant_text_parts.append(part.get("redusal", ""))
         elif item_type == "function_call":
             tool_calls.append(item)
 
     assistant_text = "\n".join(assistant_text_parts).strip()
-    print(f"\n🤖 模型回复:\n{assistant_text if assistant_text else '[No content]'}")
 
     if tool_calls:
+        print(f"\n🤖 模型回复:\n{assistant_text if assistant_text else '[No content]'}")
+
         print("\n🤖 模型正在调用工具...")
 
         next_input_items = []

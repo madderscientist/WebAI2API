@@ -1,7 +1,7 @@
 // https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create
 // 以下截取了一些需要的，主要保证了：文本、图片、文件、函数调用
 
-import { ServerChatRequest } from "./serverClient.js";
+import { ServerChatRequest } from "../serverClient.js";
 
 // ======= 输入 =======
 export interface ChatCompletionsRequest {
@@ -102,7 +102,7 @@ export interface ChatCompletionsResponse {
 
 
 // ===== 转为模型输入 =====
-import { ToolDescription, buildToolPrompt } from './toolPrompt.js';
+import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.js';
 
 export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequest>): ServerChatRequest {
     if (!Array.isArray(req.messages)) {
@@ -113,7 +113,7 @@ export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequ
     const toolDescriptions = (req.tools ?? [])
         .filter((tool)=>tool.type === 'function')
         .map(tool => tool.function as ToolDescription);
-    const toolprompt = buildToolPrompt(toolDescriptions, req.tool_choice, false);
+    const toolprompt = buildToolPrompt(toolDescriptions, req.tool_choice);
     const textMessages = buildPrompt(req.messages);
 
     return {
@@ -180,7 +180,6 @@ function buildPrompt(messages: ChatCompletionMessageParam[]): string {
 
 // 暂时不处理文件和图片
 
-import { parseToolCalls } from './toolPrompt.js';
 export function message2CompletionsMessage(msg: string, matchTool = false): ChatCompletionAssistantMessageParam {
     const message: ChatCompletionAssistantMessageParam = {
         role: 'assistant',

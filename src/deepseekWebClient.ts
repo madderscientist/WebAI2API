@@ -269,7 +269,7 @@ export class DeepSeekWebClient {
         });
 
         if (!res.ok) {
-            // 比如session不存在
+            // 乱写chat_session_id: 442 Failed to deserialize the JSON body into the target type: chat_session_id: UUID parsing failed: invalid length: expected length 32 for simple format, found 6 at line 1 column 27
             const errorText = await res.text();
             console.error(`[DeepSeekWebClient] Chat completion request failed: ${res.status}`, errorText);
             throw new Error(`Chat completion failed: ${res.status} ${errorText}`);
@@ -283,6 +283,7 @@ export class DeepSeekWebClient {
             return res.body;
         }
         // 参数错误时可能返回 json 错误信息，正常响应是流式的
+        // application/json: {"code":0,"msg":"","data":{"biz_code":1,"biz_msg":"invalid chat session id","biz_data":null}}
         throw new Error(`Unexpected content type[${contentType}] for chat completion response: ${await res.text()}`);
     }
 

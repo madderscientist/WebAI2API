@@ -1,9 +1,10 @@
 // https://developers.openai.com/api/reference/resources/responses/methods/create
-import { ToolChoice } from './completionsType.js';
+import { ToolChoice } from '../completions/completionsType.js';
 
 // ======= 输入 =======
 export interface ResponsesCreateRequest {
     model?: string;
+    instructions?: string;
     input: string | ResponsesInputItem[];
     stream?: boolean;
     tools?: ResponsesFunctionTool[];
@@ -73,51 +74,65 @@ export interface ResponsesFunctionTool {
 
 
 // ======= 输出 =======
-export interface ResponsesCreateResponse {
+export interface ResponsesResponse {
     id: string; // session_id|message_id
     object: 'response';
     created_at: number;
     status: 'completed' | 'in_progress' | 'failed' | 'cancelled' | 'incomplete' | 'queued';
     model: string;
     output: ResponseOutputItem[];
+    error?: ResponsesError | null;
     usage: {
+        input_tokens: number;
+        output_tokens: number;
         total_tokens: number;
-    };
+    } | null;
 }
 
 export type ResponseOutputItem =
     | ResponseOutputMessage
-    | ResponseOutputFuncionCall
-    | ResponseOutputLocalShellCall;
+    | ResponseOutputFuncionCall;
 
-export interface ResponseOutputMessage {
+interface ResponseOutputItemBase {
+    type: string;
+    id: string;    // 这个id是本回合返回内的唯一id，流式响应要用
+    status: 'in_progress' | 'completed' | 'incomplete';
+}
+
+export interface ResponseOutputMessage extends ResponseOutputItemBase {
     type: 'message' | 'reasoning';
-    // id: string;  // 统一到 ResponsesCreateResponse.id
-    content: string;
+    content: ResponseOutputMessageContent[];
     role: 'assistant';
 }
-export interface ResponseOutputFuncionCall {
+export type ResponseOutputMessageContent = ResponseOutputText | ResponseOutputRefusal;
+export interface ResponseOutputText {
+    type: 'output_text';
+    text: string;
+    annotations: any[];    // 链接引用 先不实现
+}
+export interface ResponseOutputRefusal {
+    type: 'refusal';
+    refusal: string;
+}
+
+export interface ResponseOutputFuncionCall extends ResponseOutputItemBase {
     type: 'function_call';
     call_id: string;
     name: string;
     arguments: string;  // json格式
 }
-export interface ResponseOutputLocalShellCall {
-    type: 'local_shell_call';
-    id: string;
-    action: {
-        command: string[];
-        timeout_ms?: number;
-        working_directory?: string;
-        type: 'exec';
-    };
+
+export interface ResponsesError {
+    code: 'server_error' | 'rate_limit_exceeded' | 'invalid_prompt' | 'vector_store_timeout' | 'invalid_image' | 'invalid_image_format' | 'invalid_base64_image'
+        | 'invalid_image_url' | 'image_too_large' | 'image_too_small' | 'image_parse_error' | 'image_content_policy_violation' | 'invalid_image_mode'
+        | 'image_file_too_large' | 'unsupported_image_media_type' | 'empty_image_file' | 'failed_to_download_image' | 'image_file_not_found';
+    message: string;
 }
 
-
 // ===== 转为模型输入 =====
-import { ServerChatRequest } from './serverClient.js';
-import { parseResponseId } from './responseId.js';
-import { ToolDescription, buildToolPrompt, parseShellCommands, parseToolCalls } from './toolPrompt.js';
+import { ServerChatRequest } from '../serverClient.js';
+import { parseResponseId } from '../responseId.js';
+import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.js';
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     const { sessionId, messageId } = parseResponseId(x.previous_response_id ?? '');
@@ -128,11 +143,12 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
         description: tool.description,
         parameters: tool.parameters,
     } as ToolDescription));
-    const toolprompt = buildToolPrompt(toolDescriptions, x.tool_choice, true);
-    const textMessages = messageFromInputItem(x.input, toolprompt.length < 10);
+    const toolprompt = buildToolPrompt(toolDescriptions, x.tool_choice);
+    const instructions = x.instructions ? `[system]:\n${x.instructions}` : '';
+    const textMessages = messageFromInputItem(x.input, toolprompt.length < 10 && !instructions);
 
     return {
-        message: [toolprompt, textMessages].filter((s): s is string => !!s).join('\n\n').trim(),
+        message: [toolprompt, instructions, textMessages].filter((s): s is string => !!s).join('\n\n').trim(),
         sessionId: sessionId ?? undefined,
         parentMessageId: messageId ?? null,
         preempt: false,
@@ -202,24 +218,8 @@ export function message2ResponsesOutput(msg: string, matchTool = false, matchShe
                     call_id: call.raw,  // 【重要】设置为源码
                     name: call.tool,
                     arguments: call.parameters,
-                },
-            });
-        }
-    }
-
-    if (matchShell) {
-        const shellCommands = parseShellCommands(msg);
-        for (const cmd of shellCommands) {
-            segments.push({
-                start: cmd.start,
-                end: cmd.start + cmd.raw.length,
-                output: {
-                    type: 'local_shell_call',
-                    id: cmd.raw,
-                    action: {
-                        command: [cmd.command],
-                        type: 'exec',
-                    },
+                    id: 'func_call_',
+                    status: 'completed'
                 },
             });
         }
@@ -238,8 +238,14 @@ export function message2ResponsesOutput(msg: string, matchTool = false, matchShe
         if (textBefore) {
             outputs.push({
                 type: 'message',
-                content: textBefore,
+                content: [{
+                    type: 'output_text',
+                    text: textBefore,
+                    annotations: []
+                }],
                 role: 'assistant',
+                id: 'msg_',
+                status: 'completed'
             });
         }
 
@@ -251,10 +257,20 @@ export function message2ResponsesOutput(msg: string, matchTool = false, matchShe
     if (tailText) {
         outputs.push({
             type: 'message',
-            content: tailText,
+            content: [{
+                type: 'output_text',
+                text: tailText,
+                annotations: []
+            }],
             role: 'assistant',
+            id: 'msg_',
+            status: 'completed'
         });
     }
 
+    // 整理id
+    for (let i = 0; i < outputs.length; i++) {
+        outputs[i].id += i;
+    }
     return outputs;
 }

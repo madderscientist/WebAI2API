@@ -1,4 +1,6 @@
 # WebAI2API
+![接入了CodeX!](READMEsrc/deepseekWebCodex.png)
+
 目标：实现个人免费的AI调用 + 从头实现 AI Agent（基于QQbot）。正在逐步推进。
 
 - 和 [`openclaw-zero-token`](https://github.com/linuxhsj/openclaw-zero-token) 的关系：API逆向参考了其代码（特别是PowChallenge）；没有openclaw的部分，只有API的封装，且专门用于Windows。
@@ -119,7 +121,22 @@ pnpm run server -p 8787 --credentials="..." --browser --user-data-dir="..."
 - 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。而具体message的id被我取消了。
 - 工具调用的id就是源码。返回调用结果时会将id和结果一起输出，这样AI就知道清晰的对应关系了
 
-个人建议不要用流式返回。对于API封装，流式返回就是直接照搬模型的输出，不会进行工具的识别。而对非流式请求，本项目会提取出工具使用并体现在返回的JSON中。而对于浏览器封装，在playwright限制下，永远没有真正的流式（无法捕获流；只能一次性得到所有输出），即使`stream=true`，也是强行包装为流进行输出，甚至只有一个数据块。最后，流式输出是我让AI写的，没有审查和深度测试过。
+流式返回目前只做了responsesAPI，是“假的”流：由于需要解析工具使用，因此先了获取所有响应，解析完再模拟的流。不过即使如此，也已经可以接入CodeX了！
+
+CodeX配置如下：
+```toml
+model = "deepseek"
+model_provider = "local-service"
+
+[windows]
+sandbox = "elevated"
+
+[model_providers.local-service]
+name = "My Local Codex Service"
+base_url = "http://localhost:8787/v1"
+wire_api = "responses"
+api_key = "do-not-need-api-key"
+```
 
 > [!CAUTION]
 > **免责声明**

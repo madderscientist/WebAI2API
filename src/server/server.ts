@@ -16,9 +16,10 @@ import {
 import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
 import { MODEL_LIST, getModelConfig } from "./models.js";
-import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completionsType.js";
-import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesCreateResponse } from "./responsesType.js";
+import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completions/completionsType.js";
+import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
+import { streamSendRestResponse } from "./responses/stream.js";
 
 const DEFAULT_PORT = 8787;
 
@@ -210,66 +211,28 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
         });
         const requestId = runResult.sessionId;
 
-        if (!rawInput.stream) {
-            const parsed = await parseResultFromStream(runResult.body);
-            sendJson(
-                res, 200, {
-                    id: buildResponseId(requestId, parsed.messageId),
-                    object: "response",
-                    created_at: Math.floor(Date.now() / 1000),
-                    status: "completed",
-                    model: modelConfig.model,
-                    output: message2ResponsesOutput(parsed.text, useTool, true),
-                    usage: {
-                        total_tokens: parsed.accumulated_token_usage,
-                    }
-                } as ResponsesCreateResponse
-            );
-            return;
-        }
-
-        sendSseHeaders(res);
-        sendSseData(res, {
-            type: "response.created",
-            response: {
-                id: buildResponseId(requestId, null),
-                object: "response",
-                created_at: Math.floor(Date.now() / 1000),
-                status: "in_progress",
-                model: modelConfig.model,
-            },
-        });
-
-        const finalParsed = await parseResultFromStream(runResult.body, (type, delta) => {
-            if (abortController.signal.aborted || res.writableEnded) return;
-            if (type === "THINK") {
-                sendSseData(res, {
-                    type: "response.reasoning.delta",
-                    delta,
-                });
-                return;
+        // 暂时先等全部结果 真流式输出有些麻烦
+        const parsed = await parseResultFromStream(runResult.body);
+        const result: ResponsesResponse = {
+            id: buildResponseId(requestId, parsed.messageId),
+            object: "response",
+            created_at: Math.floor(Date.now() / 1000),
+            status: "completed",
+            model: modelConfig.model,
+            output: message2ResponsesOutput(parsed.text, useTool, true),
+            usage: {
+                total_tokens: parsed.accumulated_token_usage + 100,
+                input_tokens: 100,
+                output_tokens: parsed.accumulated_token_usage,
             }
-            sendSseData(res, {
-                type: "response.output_text.delta",
-                delta,
-            });
-        });
-
-        // 流式输出的最后一条消息 只包含元数据
-        sendSseData(res, {
-            type: "response.completed",
-            response: {
-                id: buildResponseId(runResult.sessionId, finalParsed.messageId),
-                object: "response",
-                created_at: Math.floor(Date.now() / 1000),
-                status: "completed",
-                model: modelConfig.model,
-                ...(finalParsed.accumulated_token_usage >= 0 && { 
-                    usage: { total_tokens: finalParsed.accumulated_token_usage } 
-                }),
-            },
-        });
-        sendSseDone(res);
+        };
+        if (rawInput.stream === true) {
+            sendSseHeaders(res);
+            streamSendRestResponse(res, result, 1);
+            sendSseDone(res);
+        } else {
+            sendJson(res, 200, result);
+        }
     } catch (error) {
         if (abortController.signal.aborted || res.writableEnded) {
             return;
