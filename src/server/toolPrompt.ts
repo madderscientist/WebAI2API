@@ -35,9 +35,10 @@ Now you have access to the following tools:
 
 ${JSON.stringify(tools)}
 
-Call using the following format:
+MUST CALL USING THE FOLLOWING FORMAT:
 \`\`\`
-<tool>tool_name<params>{"param1":value1,...}</params></tool>
+<tool>tool1_name<params>{"param1":value1,...}</params></tool>
+<tool>tool2_name<params>{"param1":value1,...}</params></tool>
 \`\`\`
 
 ${buildToolChoicePrompt(toolChoice)}
@@ -62,7 +63,7 @@ export interface parsedToolCall {
     raw: string;
 }
 
-const toolCallPattern = /<tool>([\s\S]*?)<params>\s*(\{[\s\S]*?\})\s*<\/params><\/tool>/g;
+const toolCallPattern = /<tool>\s*([\s\S]*?)\s*<params>\s*([\s\S]*?)\s*<\/params>\s*<\/tool>/gs
 
 export function parseToolCalls(responseContent: string): parsedToolCall[] {
     const results: Array<parsedToolCall> = [];
@@ -70,7 +71,7 @@ export function parseToolCalls(responseContent: string): parsedToolCall[] {
     for (const match of matches) {
         results.push({
             tool: match[1],
-            parameters: match[2],
+            parameters: match[2].trim(),
             start: match.index ?? 0,
             raw: match[0],
         });

@@ -58,10 +58,116 @@ CodeX只接收ResponsesAPI，刚好。捣鼓了半个下午把ResponsesAPI的流
 
 由于本项目是prompt模拟toolcall，所以要先获取所有响应再解析，最后才能将所有结果返回。所以模拟流式响应时，我略过了所有`delta`事件，只保留了结构的创建，数据的填充直接用`done`完成。最后`complete`返回了所有数据。
 
-此时可以在网页对话中看到全过程。很遗憾，虽然使用的是自动上下文的responsesAPI，但是依然每次发起一个新的对话。观察了CodeX的prompt，发现是markdown、XML混着用。说实话看到对话框里那么长的prompt给我吓坏了（心疼DS一秒钟）。
+此时可以在网页对话中看到全过程。观察了CodeX的prompt，发现是markdown、XML混着用。官方文档中，非流式的ResponsesAPI有`ShellCall`这个返回，但是流响应中没有对应的事件；而CodeX是可以用shell的。当时还很疑惑，现在真相揭晓：有一个shell的tool。
 
-官方文档中，非流式的ResponsesAPI有`ShellCall`这个返回，但是流响应中没有对应的事件；而CodeX是可以用shell的。当时还很疑惑，现在真相揭晓：有一个shell的tool。
+CodeX如果配置了`supports_websockets=true`，会复用会话；否则不会（每次发起一个新的对话，包含所有历史）。虽然 responsesAPI本身就支持复用，但是CodeX仅在websocket模式下才会启用复用模式。
 
+阅读文档和[源码](https://github.com/openai/codex/blob/f802f0a3/codex-rs/cli/src/responses_cmd.rs#L58-L62)发现，codex会发起一个 `{type: "responses.create"}` 的socket，期望收到： 
+```rs
+fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value {
+    match event {
+        codex_api::ResponseEvent::Created => {
+            json!({ "type": "response.created", "response": {} })
+        }
+        codex_api::ResponseEvent::OutputItemDone(item) => {
+            json!({ "type": "response.output_item.done", "item": item })
+        }
+        codex_api::ResponseEvent::OutputItemAdded(item) => {
+            json!({ "type": "response.output_item.added", "item": item })
+        }
+        codex_api::ResponseEvent::ServerModel(model) => {
+            json!({ "type": "response.server_model", "model": model })
+        }
+        codex_api::ResponseEvent::ModelVerifications(verifications) => {
+            json!({ "type": "response.model_verifications", "verifications": verifications })
+        }
+        codex_api::ResponseEvent::ServerReasoningIncluded(included) => {
+            json!({ "type": "response.server_reasoning_included", "included": included })
+        }
+        codex_api::ResponseEvent::Completed {
+            response_id,
+            token_usage,
+        } => {
+            let response = match token_usage {
+                Some(token_usage) => json!({
+                    "id": response_id,
+                    "usage": {
+                        "input_tokens": token_usage.input_tokens,
+                        "input_tokens_details": {
+                            "cached_tokens": token_usage.cached_input_tokens,
+                        },
+                        "output_tokens": token_usage.output_tokens,
+                        "output_tokens_details": {
+                            "reasoning_tokens": token_usage.reasoning_output_tokens,
+                        },
+                        "total_tokens": token_usage.total_tokens,
+                    },
+                }),
+                None => json!({ "id": response_id }),
+            };
+            json!({ "type": "response.completed", "response": response })
+        }
+        codex_api::ResponseEvent::OutputTextDelta(delta) => {
+            json!({ "type": "response.output_text.delta", "delta": delta })
+        }
+        codex_api::ResponseEvent::ToolCallInputDelta {
+            item_id,
+            call_id,
+            delta,
+        } => {
+            json!({
+                "type": "response.tool_call_input.delta",
+                "item_id": item_id,
+                "call_id": call_id,
+                "delta": delta,
+            })
+        }
+        codex_api::ResponseEvent::ReasoningSummaryDelta {
+            delta,
+            summary_index,
+        } => json!({
+            "type": "response.reasoning_summary_text.delta",
+            "delta": delta,
+            "summary_index": summary_index,
+        }),
+        codex_api::ResponseEvent::ReasoningContentDelta {
+            delta,
+            content_index,
+        } => json!({
+            "type": "response.reasoning_text.delta",
+            "delta": delta,
+            "content_index": content_index,
+        }),
+        codex_api::ResponseEvent::ReasoningSummaryPartAdded { summary_index } => {
+            json!({
+                "type": "response.reasoning_summary_part.added",
+                "summary_index": summary_index,
+            })
+        }
+        codex_api::ResponseEvent::RateLimits(rate_limits) => {
+            json!({ "type": "response.rate_limits", "rate_limits": rate_limits })
+        }
+        codex_api::ResponseEvent::ModelsEtag(etag) => {
+            json!({ "type": "response.models_etag", "etag": etag })
+        }
+    }
+}
+```
+实验发现可以只发两个：https://deepwiki.com/search/codexwebsocketresponsescreatty_dd18c226-9df9-4fcc-a711-66e42c5273cf?mode=fast
+
+1. CodeX 发送一个`input=[]`的`response.create`作为预热。
+2. 我返回一个空的`response.created`和空的`response.completed`，不进行任何的请求。因为id需要我请求了才能得到（兼容web封装）
+3. 用户发送需求后，创建一个有消息的`response.create`。但由于上一轮没收到id，因此没有`previous_session_id`，相当于全量模式。但由于是第一轮，因此全量不会有任何问题。
+4. 我先发一个`response.created`，内容为空（源码允许），然后请求，结果包装为`response.completed`（没有delta；发现socket可以这样，但是SSE必须有delta）
+5. 在4还没有返回的时候，会给 `gpt-5.4-mini` 发送总结title的请求
+6. 我会拦截，改为deepseek总结标题
+7. 多轮对话即重复3和4
+
+### 关于instructions
+`https://deepwiki.com/openai/openai-python/4.2.2-conversation-and-state-management` 这里说每次会话依然要发送 `instructions`，但是会覆盖系统提示词而不是append。但是本项目的使用环境下，无法替换历史。最偷懒的方式是只有第一次发送，后面就不发送，但这无法体现instructions的更改。因此设置了一个比较，如果相同则每隔一时间注入一次，否则直接发新的。因此，如果想要完整的CodeX体验，建议不开socket。
+
+### 关于压缩
+官方文档说有，但我还没做
 
 ## token消耗
 codex需要token统计。于是我观察了一下deepseek给的`"accumulated_token_usage","v":45`是什么含义。我在一个session进行了如下对话：

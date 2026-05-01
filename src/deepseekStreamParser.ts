@@ -233,6 +233,9 @@ export class DeepseekStateDecoder {
     }
 }
 
+/**
+ * DeepseekStreamParser 将 SseStreamParser 和 DeepseekStateDecoder 结合起来，流式解析为DS数据
+ */
 export class DeepseekStreamParser extends SseStreamParser {
     decoder: DeepseekStateDecoder;
     constructor(onDelta?: DeltaFn) {
@@ -267,6 +270,42 @@ export class DeepseekStreamParser extends SseStreamParser {
                 .join('');
         } return '';
     }
+}
+
+// 解析流
+export async function parseResultFromStream(
+    stream: ReadableStream<Uint8Array>,
+    onDelta?: (type: string, delta: string) => void,
+) {
+    const parser = new DeepseekStreamParser(onDelta);
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            parser.finish();
+            break;
+        }
+        parser.push(decoder.decode(value, { stream: true }));
+    }
+
+    return {
+        text: parser.text("RESPONSE"),
+        thinking: parser.text("THINK"),
+        messageId: toNumberOrNull(parser.decoder.state.message.response?.message_id),
+        accumulated_token_usage: parser.decoder.state.message.response?.accumulated_token_usage ?? -1
+    };
+}
+
+function toNumberOrNull(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
 }
 
 // DEMO: Read test.txt, parse, and output state as JSON

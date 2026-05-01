@@ -1,8 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { WebSocketServer } from "ws";
+import Stream from "node:stream";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import { getDefaultCredentialPath } from "../auth.js";
-import { DeepseekStreamParser } from "../deepseekStreamParser.js";
+import { parseResultFromStream } from "../deepseekStreamParser.js";
 import {
     getAllowedIpSummary,
     isAllowlistedClient,
@@ -20,6 +22,7 @@ import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMess
 import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
 import { streamSendRestResponse } from "./responses/stream.js";
+import { WebSocketSessionManager } from "./websocketHandler.js";
 
 const DEFAULT_PORT = 8787;
 
@@ -33,41 +36,6 @@ async function handleModels(res: ServerResponse) {
             owned_by: "localhost",
         })),
     });
-}
-
-function toNumberOrNull(value: unknown): number | null {
-    if (value === null || value === undefined) return null;
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-        const parsed = Number(value);
-        if (Number.isFinite(parsed)) return parsed;
-    }
-    return null;
-}
-
-async function parseResultFromStream(
-    stream: ReadableStream<Uint8Array>,
-    onDelta?: (type: string, delta: string) => void,
-) {
-    const parser = new DeepseekStreamParser(onDelta);
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            parser.finish();
-            break;
-        }
-        parser.push(decoder.decode(value, { stream: true }));
-    }
-
-    return {
-        text: parser.text("RESPONSE"),
-        thinking: parser.text("THINK"),
-        messageId: toNumberOrNull(parser.decoder.state.message.response?.message_id),
-        accumulated_token_usage: parser.decoder.state.message.response?.accumulated_token_usage ?? -1
-    };
 }
 
 async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, client: ServerClient) {
@@ -296,6 +264,34 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, client: 
     sendJson(res, 404, errorResponse(`Route not found: ${method} ${url.pathname}`, 404, "not_found"));
 }
 
+function handleWebSocketUpgrade(
+    req: IncomingMessage,
+    socket: Stream.Duplex,
+    head: Buffer,
+    wss: WebSocketServer,
+    client: ServerClient
+) {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+
+    if (!isAllowlistedClient(req)) {
+        socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+        socket.destroy();
+        return;
+    }
+
+    // 只有 /v1/responses 支持 WebSocket
+    if (url.pathname === "/v1/responses") {
+        wss.handleUpgrade(req, socket, head, (ws) => {
+            console.log(`[WebSocket] New connection from ${req.socket.remoteAddress}`);
+            new WebSocketSessionManager(ws, client);
+        });
+        return;
+    }
+
+    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+    socket.destroy();
+}
+
 async function main() {
     const parsed = parseArgs({
         args: process.argv.slice(2),
@@ -328,14 +324,15 @@ async function main() {
     };
 
     process.on("SIGINT", () => {
-        void shutdown().finally(() => process.exit(0));
+        shutdown().finally(() => process.exit(0));
     });
     process.on("SIGTERM", () => {
-        void shutdown().finally(() => process.exit(0));
+        shutdown().finally(() => process.exit(0));
     });
 
+    // 处理 HTTP 请求
     const server = createServer((req, res) => {
-        void handleRequest(req, res, client).catch((error) => {
+        handleRequest(req, res, client).catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
             if (!res.headersSent) {
                 sendJson(res, 500, errorResponse(message, 500, "server_error"));
@@ -345,9 +342,16 @@ async function main() {
         });
     });
 
+    // 处理 WebSocket 升级请求
+    const wss = new WebSocketServer({ noServer: true });
+    server.on("upgrade", (req, socket, head) => {
+        handleWebSocketUpgrade(req, socket, head, wss, client);
+    });
+
     const port = Number(parsed.values.port) || DEFAULT_PORT;
     server.listen(port, () => {
         console.log(`[WebAI2API] HTTP server listening on http://127.0.0.1:${port}`);
+        console.log(`[WebAI2API] WebSocket support enabled on ws://127.0.0.1:${port}/v1/responses`);
         console.log(`[WebAI2API] Client mode: ${client.mode}`);
         console.log(`[WebAI2API] Allowed client IPs: ${getAllowedIpSummary()}`);
         if (client.mode === "browser" && userDataDir) {

@@ -136,7 +136,9 @@ name = "My Local Codex Service"
 base_url = "http://localhost:8787/v1"
 wire_api = "responses"
 api_key = "do-not-need-api-key"
+supports_websockets = true
 ```
+注意：supports_websockets为true时会复用会话，为false时不会复用。
 
 > [!CAUTION]
 > **免责声明**

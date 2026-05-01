@@ -1,5 +1,6 @@
 // https://developers.openai.com/api/reference/resources/responses/methods/create
 import { ToolChoice } from '../completions/completionsType.js';
+export const READY_RESPONSE_ID = "noop-empty-input";    // 有时候一定要有一个响应ID返回，那就返回这个值。
 
 // ======= 输入 =======
 export interface ResponsesCreateRequest {
@@ -29,7 +30,7 @@ export interface EasyInputMessage {
 export type ResponseInputContent = ResponseInputText | ResponseInputImage | ResponseInputFile;
 export interface ResponseInputText {
     text: string;
-    type: 'input_text';
+    type: 'input_text' | 'output_text'; // 虽然官方文档没有output_text，但是codex会原封不动加到输入中
 }
 export interface ResponseInputImage {
     detail: 'auto' | 'low' | 'high' | 'original';
@@ -127,7 +128,9 @@ import { parseResponseId } from '../responseId.js';
 import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.js';
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
-    const { sessionId, messageId } = parseResponseId(x.previous_response_id ?? '');
+    // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
+    const prevId = (x.previous_response_id && x.previous_response_id !== READY_RESPONSE_ID) ? x.previous_response_id : '';
+    const { sessionId, messageId } = parseResponseId(prevId);
 
     // 构建prompt
     const toolDescriptions = (x.tools ?? []).map(tool => ({
@@ -140,6 +143,7 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     const textMessages = messageFromInputItem(x.input, toolprompt.length < 10 && !instructions);
 
     return {
+        // toolprompt 放在前面很重要 不然会忘了调用格式
         message: [toolprompt, instructions, textMessages].filter((s): s is string => !!s).join('\n\n').trim(),
         sessionId: sessionId ?? undefined,
         parentMessageId: messageId ?? null,
@@ -154,12 +158,14 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
 
     function easyInputToText(item: EasyInputMessage): string[] {
         const outputs: string[] = [];
+        // 忽略空的
         if (typeof item.content === 'string') {
-            outputs.push(item.content);
+            if (item.content.length > 0) outputs.push(item.content);
         } else {
             for (const contentItem of item.content) {
-                if (contentItem.type === 'input_text') {
-                    outputs.push(contentItem.text);
+                if (contentItem.type.includes('text')) {
+                    const t = (contentItem as ResponseInputText).text;
+                    if (t.length > 0) outputs.push(t);
                 }
                 // 其他的(图片/文件)不处理
             }
@@ -170,8 +176,11 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
 
     for (const item of items) {
         if (!item.type || item.type === 'message') {
-            messages.push(`[${item.role}]:`);
-            messages.push(...easyInputToText(item as EasyInputMessage));
+            const content = easyInputToText(item as EasyInputMessage);
+            if (content.length > 0) {
+                messages.push(`[${item.role}]:`);
+                messages.push(...content);
+            }
         } else if (item.type === 'function_call_output') {
             messages.push(`[user tool call result]:\n<call>${item.call_id}</call>\n<output>${item.output}</output>${item.status ? `\n<status>${item.status}</status>` : ''}`);
         }
@@ -181,6 +190,31 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
         messages.shift();
     }
     return messages.join('\n\n');
+}
+
+// WebSocket特判：只有当有输入的时候才发出去
+export function hasRunnableUserInput(items: string | ResponsesInputItem[]): boolean {
+    if (typeof items === 'string') return items.trim().length > 0;
+
+    for (const item of items) {
+        if (item.type === 'function_call_output') {
+            const output = (item.output ?? '').trim();
+            if (output.length > 0) return true;
+            continue;
+        }
+
+        const messageItem = item as EasyInputMessage;
+        if (messageItem.role !== 'user') continue;
+        if (typeof messageItem.content === 'string') {
+            if (messageItem.content.trim().length > 0) return true;
+            continue;
+        }
+        for (const content of messageItem.content) {
+            if (content.type === 'input_text' && content.text.trim().length > 0) {
+                return true;
+            }
+        }
+    } return false;
 }
 
 // 暂时不处理文件

@@ -163,16 +163,17 @@ export function streamSendRestResponse(res: ServerResponse, data: ResponsesRespo
         response: {
             id: data.id,
             object: 'response',
-            created_at: Math.floor(Date.now() / 1000),
+            created_at: Math.floor(Date.now() / 1000) - 1,
             status: 'in_progress',
             model: data.model,
             output: [],
             usage: null
         },
-        sequence_number: sequence_number,
+        sequence_number,
     } as ResponseCreatedEvent);
+    sequence_number++;
 
-    // 发送中间的data
+    // 发送中间的data 必须要有，不然codex不显示（不能直接在response.completed中发完整信息）
     for (let i = 0; i < data.output.length; i++) {
         sequence_number = streamSendOutputItem(res, data.output[i], i, sequence_number);
     }
