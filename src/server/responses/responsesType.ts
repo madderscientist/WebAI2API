@@ -125,7 +125,7 @@ export interface ResponsesError {
 // ===== 转为模型输入 =====
 import { ServerChatRequest } from '../serverClient.js';
 import { parseResponseId } from '../responseId.js';
-import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, parseToolCalls, toolCallFormat } from '../toolPrompt.js';
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
@@ -141,10 +141,14 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     const toolprompt = buildToolPrompt(toolDescriptions, x.tool_choice);
     const instructions = x.instructions ? `[system]:\n${x.instructions}` : '';
     const textMessages = messageFromInputItem(x.input, toolprompt.length < 10 && !instructions);
+    let emphasisToolFormat = '';
+    if (instructions.length + textMessages.length > 4514) {
+        emphasisToolFormat = toolCallFormat;
+    }
 
     return {
         // toolprompt 放在前面很重要 不然会忘了调用格式
-        message: [toolprompt, instructions, textMessages].filter((s): s is string => !!s).join('\n\n').trim(),
+        message: [toolprompt, instructions, textMessages, emphasisToolFormat].filter((s): s is string => !!s).join('\n\n').trim(),
         sessionId: sessionId ?? undefined,
         parentMessageId: messageId ?? null,
         preempt: false,
@@ -182,7 +186,8 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
                 messages.push(...content);
             }
         } else if (item.type === 'function_call_output') {
-            messages.push(`[user tool call result]:\n<call>${item.call_id}</call>\n<output>${item.output}</output>${item.status ? `\n<status>${item.status}</status>` : ''}`);
+            // 本项目中 call_id 是源码
+            messages.push(`[user tool call result]:\n${item.call_id}\n<output>${item.output}</output>${item.status ? `\n<status>${item.status}</status>` : ''}`);
         }
     }
     // 如果只有一项且是用户消息则不需要role标签

@@ -26,20 +26,16 @@ Here is an example of the tool list:
 {"name":"x_minus_y","description":"Subtract y from x. Returns the result.","parameters":{"type":"object","properties":{"x":{"type":"number","description":"The number to subtract from."},"y":{"type":"number","description":"The number to subtract.","default":0}},"required":["x"]}}\
 ]
 If you need to add one to number 10, return:
-
-<tool>plus_one<params>{"x":10}</params></tool>
-
+\`\`\`
+<tool_call>plus_one<params>{"x":10}</params></tool_call>
+\`\`\`
 Please note that the above is just an example and does not mean that the plus_one and minus_one tools are currently available.
 
 Now you have access to the following tools:
 
 ${JSON.stringify(tools)}
 
-MUST CALL USING THE FOLLOWING FORMAT:
-\`\`\`
-<tool>tool1_name<params>{"param1":value1,...}</params></tool>
-<tool>tool2_name<params>{"param1":value1,...}</params></tool>
-\`\`\`
+${toolCallFormat}
 
 ${buildToolChoicePrompt(toolChoice)}
 
@@ -63,7 +59,14 @@ export interface parsedToolCall {
     raw: string;
 }
 
-const toolCallPattern = /<tool>\s*([\s\S]*?)\s*<params>\s*([\s\S]*?)\s*<\/params>\s*<\/tool>/gs
+export const toolCallFormat = `[important]:
+YOU MUST CALL USING THE FOLLOWING FORMAT:
+\`\`\`
+<tool_call>tool1_name<params>{"param1":value1,...}</params></tool_call>
+<tool_call>tool2_name<params>{"param2":value2,...}</params></tool_call>
+\`\`\`
+Prohibit any other output formats!`;
+const toolCallPattern = /<tool_call>\s*([\s\S]*?)\s*<params>\s*([\s\S]*?)\s*<\/params>\s*<\/tool_call>/gs
 
 export function parseToolCalls(responseContent: string): parsedToolCall[] {
     const results: Array<parsedToolCall> = [];

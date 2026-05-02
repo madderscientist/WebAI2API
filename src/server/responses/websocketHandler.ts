@@ -6,7 +6,6 @@ import {
     message2ResponsesOutput,
     hasRunnableUserInput,
     type ResponsesCreateRequest,
-    type ResponseOutputItem,
     ResponsesResponse,
 } from "./responsesType.js";
 import { buildResponseId, parseResponseId } from "../responseId.js";
@@ -283,7 +282,7 @@ export class WebSocketSessionManager {
         this.abortControllers.clear();
 
         // 删除会话
-        if (this.sessionId) {
+        if (this.sessionId && !this.sessionId.startsWith(READY_RESPONSE_ID)) {
             try {
                 await this.client.deleteSession(this.sessionId);
                 console.log(`[WebSocket] Session deleted sessionId=${this.sessionId}`);
