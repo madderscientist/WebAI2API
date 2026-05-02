@@ -2,10 +2,7 @@
  * Responses API 流式输出
  * https://developers.openai.com/api/reference/resources/responses/streaming-events
  */
-
-import { ServerResponse } from "http";
-import { ResponsesError, ResponsesResponse, ResponseOutputItem, ResponseOutputText, ResponseOutputFuncionCall, ResponseOutputMessage, ResponseOutputMessageContent } from "./responsesType.js";
-import { sendSseData } from "../httpUtils.js";
+import { ResponsesError, ResponsesResponse, ResponseOutputItem, ResponseOutputFuncionCall, ResponseOutputMessage, ResponseOutputMessageContent } from "./responsesType.js";
 
 // 整个response的生命周期
 export interface ResponseCreatedEvent {
@@ -155,10 +152,10 @@ response.completed
 还有诸如file_search_call这种是给服务器执行的（比如搜索向量库），不实现
 */
 
-// 用于将已有的数据转换为流式输出
-export function streamSendRestResponse(res: ServerResponse, data: ResponsesResponse, sequence_number = 1): number {
+// 用于一次性将已有的数据转换为流式输出
+export function streamSendRestResponse(sender: (data: any) => void, data: ResponsesResponse, sequence_number = 1): number {
     // 发送初始响应
-    sendSseData(res, {
+    sender({
         type: 'response.created',
         response: {
             id: data.id,
@@ -175,12 +172,12 @@ export function streamSendRestResponse(res: ServerResponse, data: ResponsesRespo
 
     // 发送中间的data 必须要有，不然codex不显示（不能直接在response.completed中发完整信息）
     for (let i = 0; i < data.output.length; i++) {
-        sequence_number = streamSendOutputItem(res, data.output[i], i, sequence_number);
+        sequence_number = streamSendOutputItem(sender, data.output[i], i, sequence_number);
     }
 
     // 发送完整内容
     data.created_at = Math.floor(Date.now() / 1000);
-    sendSseData(res, {
+    sender({
         type: 'response.completed',
         response: data,
         sequence_number,
@@ -188,7 +185,8 @@ export function streamSendRestResponse(res: ServerResponse, data: ResponsesRespo
     return sequence_number + 1;
 }
 
-function streamSendOutputItem(res: ServerResponse, item: ResponseOutputItem, idx: number, sequence_number: number) {
+// 通用
+export function streamSendOutputItem(sender: (data: any) => void, item: ResponseOutputItem, idx: number, sequence_number: number) {
     const inner: ResponseOutputItem = { ...item };
     inner.status = 'in_progress';
     const isFunctionCall = inner.type === 'function_call';
@@ -198,7 +196,7 @@ function streamSendOutputItem(res: ServerResponse, item: ResponseOutputItem, idx
         inner.content = [];
     }
 
-    sendSseData(res, {
+    sender({
         type: 'response.output_item.added',
         output_index: idx,
         item: inner,
@@ -208,15 +206,15 @@ function streamSendOutputItem(res: ServerResponse, item: ResponseOutputItem, idx
 
     // 这一块疑似可以省略 直接在 item.done里发完整内容了
     if (isFunctionCall) {
-        sequence_number = streamSendFunctionCallArg(res, item as ResponseOutputFuncionCall, idx, sequence_number);
+        sequence_number = streamSendFunctionCallArg(sender, item as ResponseOutputFuncionCall, idx, sequence_number);
     } else {
         const m = item as ResponseOutputMessage;
         for (let i = 0; i < m.content.length; i++) {
-            sequence_number = streamSendMessageContent(res, m.content[i], m.id, idx, i, sequence_number);
+            sequence_number = streamSendMessageContent(sender, m.content[i], m.id, idx, i, sequence_number);
         }
     }
 
-    sendSseData(res, {
+    sender({
         type: 'response.output_item.done',
         output_index: idx,
         item: item,
@@ -225,8 +223,8 @@ function streamSendOutputItem(res: ServerResponse, item: ResponseOutputItem, idx
     return sequence_number + 1;
 }
 
-function streamSendFunctionCallArg(res: ServerResponse, item: ResponseOutputFuncionCall, idx: number, sequence_number: number) {
-    sendSseData(res, {
+function streamSendFunctionCallArg(sender: (data: any) => void, item: ResponseOutputFuncionCall, idx: number, sequence_number: number) {
+    sender({
         type: 'response.function_call_arguments.done',
         item_id: item.id,
         name: item.name,
@@ -237,9 +235,9 @@ function streamSendFunctionCallArg(res: ServerResponse, item: ResponseOutputFunc
     return sequence_number + 1;
 }
 
-function streamSendMessageContent(res: ServerResponse, content: ResponseOutputMessageContent, item_id: string, output_index: number, content_index: number, sequence_number: number) {
+function streamSendMessageContent(sender: (data: any) => void, content: ResponseOutputMessageContent, item_id: string, output_index: number, content_index: number, sequence_number: number) {
     if (content.type === 'output_text') {
-        sendSseData(res, {
+        sender({
             type: 'response.content_part.added',
             item_id,
             output_index,
@@ -253,7 +251,7 @@ function streamSendMessageContent(res: ServerResponse, content: ResponseOutputMe
         } as ResponseOutputContentPartAddedEvent);
         sequence_number++;
         // 跳过delta直接发done
-        sendSseData(res, {
+        sender({
             type: 'response.output_text.done',
             output_index,
             item_id,
@@ -263,7 +261,7 @@ function streamSendMessageContent(res: ServerResponse, content: ResponseOutputMe
         } as ResponseOutputTextDoneEvent);
         sequence_number++;
     } else {
-        sendSseData(res, {
+        sender({
             type: 'response.content_part.added',
             item_id,
             output_index,
@@ -276,7 +274,7 @@ function streamSendMessageContent(res: ServerResponse, content: ResponseOutputMe
         } as ResponseOutputContentPartAddedEvent);
         sequence_number++;
 
-        sendSseData(res, {
+        sender({
             type: 'response.refusal.done',
             item_id,
             output_index,
@@ -287,7 +285,7 @@ function streamSendMessageContent(res: ServerResponse, content: ResponseOutputMe
         sequence_number++;
     }
     // 结束content
-    sendSseData(res, {
+    sender({
         type: 'response.content_part.done',
         item_id,
         output_index,

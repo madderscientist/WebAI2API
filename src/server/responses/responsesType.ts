@@ -1,6 +1,6 @@
 // https://developers.openai.com/api/reference/resources/responses/methods/create
 import { ToolChoice } from '../completions/completionsType.js';
-export const READY_RESPONSE_ID = "noop-empty-input";    // 有时候一定要有一个响应ID返回，那就返回这个值。
+export const READY_RESPONSE_ID = "noop-empty-input";    // 有时候一定要有一个响应ID返回，就返回这个值为前缀的
 
 // ======= 输入 =======
 export interface ResponsesCreateRequest {
@@ -129,7 +129,7 @@ import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
-    const prevId = (x.previous_response_id && x.previous_response_id !== READY_RESPONSE_ID) ? x.previous_response_id : '';
+    const prevId = (x.previous_response_id && !x.previous_response_id.startsWith(READY_RESPONSE_ID)) ? x.previous_response_id : '';
     const { sessionId, messageId } = parseResponseId(prevId);
 
     // 构建prompt

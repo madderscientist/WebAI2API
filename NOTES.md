@@ -153,10 +153,9 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
     }
 }
 ```
-实验发现可以只发两个：https://deepwiki.com/search/codexwebsocketresponsescreatty_dd18c226-9df9-4fcc-a711-66e42c5273cf?mode=fast
 
 1. CodeX 发送一个`input=[]`的`response.create`作为预热。
-2. 我返回一个空的`response.created`和空的`response.completed`，不进行任何的请求。因为id需要我请求了才能得到（兼容web封装）
+2. 我返回一个空的`response.created`和空的`response.completed`，不进行任何的请求。因为id需要我请求了才能得到（兼容web封装）。不过实际实现的时候还是发了一个占位的id。
 3. 用户发送需求后，创建一个有消息的`response.create`。但由于上一轮没收到id，因此没有`previous_session_id`，相当于全量模式。但由于是第一轮，因此全量不会有任何问题。
 4. 我先发一个`response.created`，内容为空（源码允许），然后请求，结果包装为`response.completed`（没有delta；发现socket可以这样，但是SSE必须有delta）
 5. 在4还没有返回的时候，会给 `gpt-5.4-mini` 发送总结title的请求

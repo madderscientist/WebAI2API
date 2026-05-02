@@ -1,21 +1,21 @@
 // https://developers.openai.com/api/docs/guides/websocket-mode
 
 import { WebSocket } from "ws";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
     normalizeResponsesRequest,
     message2ResponsesOutput,
     hasRunnableUserInput,
     type ResponsesCreateRequest,
     type ResponseOutputItem,
-} from "./responses/responsesType.js";
-import { buildResponseId } from "./responseId.js";
-import { getModelConfig } from "./models.js";
-import { shouldUseToolPrompt } from "./toolPrompt.js";
-import type { ServerClient } from "./serverClient.js";
-import { parseResultFromStream } from "../deepseekStreamParser.js";
-import { READY_RESPONSE_ID } from "./responses/responsesType.js";
+    ResponsesResponse,
+} from "./responsesType.js";
+import { buildResponseId, parseResponseId } from "../responseId.js";
+import { getModelConfig } from "../models.js";
+import { shouldUseToolPrompt } from "../toolPrompt.js";
+import type { ServerClient } from "../serverClient.js";
+import { parseResultFromStream } from "../../deepseekStreamParser.js";
+import { READY_RESPONSE_ID } from "./responsesType.js";
+import { streamSendRestResponse } from "./stream.js";
 
 export interface WebSocketMessage {
     type: "response.create";
@@ -26,7 +26,7 @@ export interface WebSocketMessage {
 }
 
 export interface WebSocketResponse {
-    type: "response" | "stream" | "error" | "pong";
+    type: "response" | "error";
     requestId?: string;
     data?: unknown;
     error?: Record<string, unknown> | string;
@@ -42,6 +42,9 @@ export class WebSocketSessionManager {
     private readonly client: ServerClient;
     private sessionId: string | null = null;    // 用于删除对话
     private readonly abortControllers = new Map<string, AbortController>();
+    // 管理instructions
+    private instructions: string | undefined;   // 防止每次都发送
+    private lastInstructionMessageId: number = -114514;
 
     private getRequestEnvelope(message: WebSocketMessage): {
         request: ResponsesCreateRequest;
@@ -59,30 +62,7 @@ export class WebSocketSessionManager {
                 codexProtocol: true,    // 标记为 Codex 的请求
             };
         }
-
         return null;
-    }
-
-    private sendCodexCreated(responseId: string, model: string, requestId?: string) {
-        this.sendRaw({
-            type: "response.created",
-            response: {
-                id: responseId,
-                object: "response",
-                created_at: Math.floor(Date.now() / 1000) - 1,
-                status: "in_progress",
-                model,
-                output: [],
-                usage: null,
-            }
-        });
-    }
-
-    private sendCodexCompleted(data: unknown) {
-        this.sendRaw({
-            type: "response.completed",
-            response: data,
-        });
     }
 
     private sendCodexFailed(message: string) {
@@ -97,100 +77,6 @@ export class WebSocketSessionManager {
                 }
             }
         });
-    }
-
-    // 和stream的发送方式一致
-    private sendCodexOutputEvents(outputs: ResponseOutputItem[]) {
-        let sequence = 1;
-        for (let i = 0; i < outputs.length; i++) {
-            const item = outputs[i];
-            if (item.type === "function_call") {
-                this.sendRaw({
-                    type: "response.output_item.added",
-                    output_index: i,
-                    item: {
-                        ...item,
-                        arguments: "",
-                        status: "in_progress",
-                    },
-                    sequence_number: sequence++,
-                });
-                this.sendRaw({
-                    type: "response.function_call_arguments.done",
-                    output_index: i,
-                    item_id: item.id,
-                    name: item.name,
-                    arguments: item.arguments,
-                    sequence_number: sequence++,
-                });
-                this.sendRaw({
-                    type: "response.output_item.done",
-                    output_index: i,
-                    item,
-                    sequence_number: sequence++,
-                });
-                continue;
-            }
-
-            this.sendRaw({
-                type: "response.output_item.added",
-                output_index: i,
-                item: {
-                    ...item,
-                    content: [],
-                    status: "in_progress",
-                },
-                sequence_number: sequence++,
-            });
-            const parts = item.content ?? [];
-            for (let j = 0; j < parts.length; j++) {
-                const part = parts[j];
-                this.sendRaw({
-                    type: "response.content_part.added",
-                    item_id: item.id,
-                    output_index: i,
-                    content_index: j,
-                    part: part.type === "output_text"
-                        ? { type: "output_text", text: "", annotations: [] }
-                        : { type: "refusal", refusal: "" },
-                    sequence_number: sequence++,
-                });
-
-                if (part.type === "output_text") {
-                    this.sendRaw({
-                        type: "response.output_text.done",
-                        output_index: i,
-                        item_id: item.id,
-                        content_index: j,
-                        text: part.text,
-                        sequence_number: sequence++,
-                    });
-                } else {
-                    this.sendRaw({
-                        type: "response.refusal.done",
-                        output_index: i,
-                        item_id: item.id,
-                        content_index: j,
-                        refusal: part.refusal,
-                        sequence_number: sequence++,
-                    });
-                }
-                this.sendRaw({
-                    type: "response.content_part.done",
-                    item_id: item.id,
-                    output_index: i,
-                    content_index: j,
-                    part,
-                    sequence_number: sequence++,
-                });
-            }
-            this.sendRaw({
-                type: "response.output_item.done",
-                output_index: i,
-                item,
-                sequence_number: sequence++,
-            });
-        }
     }
 
     constructor(ws: WebSocket, client: ServerClient) {
@@ -241,7 +127,7 @@ export class WebSocketSessionManager {
         rawInput: ResponsesCreateRequest,
         codexProtocol = false,
     ) {
-        const requestId = `req_${Date.now()}`;  // 用于AbortController的管理
+        const requestId = Date.now().toString();    // 用于AbortController的管理
         try {
             // codex 会在用户发送消息后请求 gpt-5.4-mini 总结标题，此时改为deepseek
             let modelConfig;
@@ -267,6 +153,7 @@ export class WebSocketSessionManager {
                             id: READY_RESPONSE_ID
                         }   // 实测不传id也没事
                     });
+                    this.sessionId = READY_RESPONSE_ID;
                     return;
                 }
                 const message = "input must include at least one non-empty user message or function_call_output.";
@@ -274,8 +161,25 @@ export class WebSocketSessionManager {
                 return;
             }
 
-            const normalized = normalizeResponsesRequest(rawInput);
+            // 去重 Instructions
+            let _tmp = parseResponseId(rawInput.previous_response_id ?? '');
+            const rawInputMessageId = _tmp.messageId ?? 0;
+            if (rawInput.instructions === this.instructions && rawInputMessageId - this.lastInstructionMessageId < 30) {
+                rawInput.instructions = undefined;
+            } else {
+                this.instructions = rawInput.instructions;
+            }
+            // 校验 sessionId 是否相同
+            if (_tmp.sessionId !== this.sessionId) {
+                this.sendError({
+                    code: "previous_response_not_found",
+                    message: `Previous response with id '${_tmp.sessionId}' not found, expected ${this.sessionId}.`,
+                    param: "previous_response_id"
+                }, 400);
+                return;
+            }
 
+            const normalized = normalizeResponsesRequest(rawInput);
             if (!normalized.message) {
                 this.sendError("messages must include at least one non-empty message.", 400);
                 return;
@@ -295,35 +199,33 @@ export class WebSocketSessionManager {
 
                 // 更新会话信息
                 this.sessionId = runResult.sessionId;
-                if (codexProtocol) this.sendCodexCreated(runResult.sessionId, modelConfig.model);
-
                 // 等待并解析
                 const parsed = await parseResultFromStream(runResult.body);
 
+                // socket模式下都是流式的结构
                 let input_token_est = normalized.message.length >> 2;
                 let output_token_est = (parsed.text.length) >> 2;
                 input_token_est = Math.floor(parsed.accumulated_token_usage * input_token_est / (input_token_est + output_token_est));
                 output_token_est = parsed.accumulated_token_usage - input_token_est;
 
-                // socket模式下都是流式的结构
-
-                // 发送完成信号，包含最终的 ID
                 const finalId = buildResponseId(runResult.sessionId, parsed.messageId);
-                const parsedOutputs = message2ResponsesOutput(parsed.text, finalId, shouldUseToolPrompt(rawInput.tools, rawInput.tool_choice));
-
-                // 发送剩余消息
-                this.sendCodexOutputEvents(parsedOutputs);
+                const result: ResponsesResponse = {
+                    id: finalId,
+                    object: "response",
+                    created_at: Math.floor(Date.now() / 1000),
+                    status: "completed",
+                    model: modelConfig.model,
+                    output: message2ResponsesOutput(parsed.text, finalId, shouldUseToolPrompt(rawInput.tools, rawInput.tool_choice)),
+                    usage: {
+                        total_tokens: parsed.accumulated_token_usage,
+                        input_tokens: input_token_est,
+                        output_tokens: output_token_est,
+                    },
+                };
                 if (codexProtocol) {
-                    this.sendCodexCompleted({
-                        id: finalId,
-                        object: "response",
-                        created_at: Math.floor(Date.now() / 1000),
-                        status: "completed",
-                        model: modelConfig.model,
-                        output: parsedOutputs,
-                        usage: null,
-                    });
+                    streamSendRestResponse((data) => this.sendRaw(data), result, 1);
                 }
+                this.lastInstructionMessageId = parsed.messageId ?? -114514;
             } finally {
                 this.abortControllers.delete(requestId);
             }
@@ -349,7 +251,7 @@ export class WebSocketSessionManager {
         console.warn(`[WebSocket] Skip send because socket not open (readyState=${this.ws.readyState})`);
     }
 
-    private sendRaw(message: Record<string, unknown>) {
+    private sendRaw(message: Record<string, any>) {
         if (this.ws.readyState === 1) {
             this.ws.send(JSON.stringify(message));
             return;
@@ -357,7 +259,7 @@ export class WebSocketSessionManager {
         console.warn(`[WebSocket] Skip raw send because socket not open (readyState=${this.ws.readyState})`);
     }
 
-    private sendError(message: string, code: number = 500) {
+    private sendError(message: any, code: number = 500) {
         console.warn(`[WebSocket] Send error code=${code} message=${message}`);
         this.send({
             type: "error",

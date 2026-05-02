@@ -22,7 +22,7 @@ import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMess
 import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
 import { streamSendRestResponse } from "./responses/stream.js";
-import { WebSocketSessionManager } from "./websocketHandler.js";
+import { WebSocketSessionManager } from "./responses/websocketHandler.js";
 
 const DEFAULT_PORT = 8787;
 
@@ -204,7 +204,7 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
         };
         if (rawInput.stream === true) {
             sendSseHeaders(res);
-            streamSendRestResponse(res, result, 1);
+            streamSendRestResponse((data) => sendSseData(res, data), result, 1);
             sendSseDone(res);
         } else {
             sendJson(res, 200, result);
