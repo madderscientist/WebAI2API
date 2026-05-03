@@ -102,7 +102,7 @@ export interface ChatCompletionsResponse {
 
 
 // ===== 转为模型输入 =====
-import { ToolDescription, buildToolPrompt, parseToolCalls } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser } from '../toolPrompt.js';
 
 export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequest>): ServerChatRequest {
     if (!Array.isArray(req.messages)) {
@@ -186,7 +186,7 @@ export function message2CompletionsMessage(msg: string, matchTool = false): Chat
         content: msg,
     };
     if (matchTool) {
-        const toolCalls = parseToolCalls(msg);
+        const toolCalls = ToolCallParser.parseToolCalls(msg);
 
         if (toolCalls.length > 0) {
             message.tool_calls = toolCalls.map(call => ({

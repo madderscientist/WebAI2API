@@ -19,9 +19,9 @@ import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
 import { MODEL_LIST, getModelConfig } from "./models.js";
 import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completions/completionsType.js";
-import { message2ResponsesOutput, normalizeResponsesRequest, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
+import { estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
-import { streamSendRestResponse } from "./responses/stream.js";
+import { streamEventsFromStream } from "./responses/stream.js";
 import { WebSocketSessionManager } from "./responses/websocketHandler.js";
 
 const DEFAULT_PORT = 8787;
@@ -179,34 +179,47 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
         });
         const requestId = runResult.sessionId;
 
-        // 暂时先等全部结果 真流式输出有些麻烦
-        const parsed = await parseResultFromStream(runResult.body);
-
-        // 估计token消耗 这是codex需要的值
-        let input_token_est = normalized.message.length >> 2; // 4字符1token的经验值
-        let output_token_est = (parsed.text.length + parsed.thinking.length) >> 2;
-        input_token_est = Math.floor(parsed.accumulated_token_usage * input_token_est / (input_token_est + output_token_est));
-        output_token_est = parsed.accumulated_token_usage - input_token_est;
-
-        const id = buildResponseId(requestId, parsed.messageId);
-        const result: ResponsesResponse = {
-            id,
-            object: "response",
-            created_at: Math.floor(Date.now() / 1000),
-            status: "completed",
-            model: modelConfig.model,
-            output: message2ResponsesOutput(parsed.text, id, useTool),
-            usage: {
-                total_tokens: parsed.accumulated_token_usage,
-                input_tokens: input_token_est,
-                output_tokens: output_token_est,
-            }
-        };
         if (rawInput.stream === true) {
             sendSseHeaders(res);
-            streamSendRestResponse((data) => sendSseData(res, data), result, 1);
+            await streamEventsFromStream(
+                runResult.body,
+                useTool,
+                requestId,
+                modelConfig.model,
+                normalized.message.length,
+                (data) => {
+                    if (abortController.signal.aborted || res.writableEnded) return;
+                    sendSseData(res, data);
+                }
+            );
             sendSseDone(res);
         } else {
+            // 一次性解析完
+            const parsed = await parseResultFromStream(runResult.body);
+            const id = buildResponseId(requestId, parsed.messageId);
+            const output = message2ResponsesOutput(parsed.text, id, useTool);
+            if (parsed.thinking.trim()) {   // 添加思考字段
+                output.push({
+                    type: 'reasoning',
+                    content: [{
+                        type: 'output_text',
+                        text: parsed.thinking.trim(),
+                        annotations: [],
+                    }],
+                    role: 'assistant',
+                    id: `thinking_${id}`,
+                    status: 'completed',
+                } as ResponseOutputMessage);
+            }
+            const result: ResponsesResponse = {
+                id,
+                object: "response",
+                created_at: Math.floor(Date.now() / 1000),
+                status: "completed",
+                model: modelConfig.model,
+                output,
+                usage: estimateUsage(parsed.accumulated_token_usage, normalized.message.length, parsed.text.length + parsed.thinking.length),
+            };
             sendJson(res, 200, result);
         }
     } catch (error) {

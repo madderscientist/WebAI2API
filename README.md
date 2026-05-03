@@ -1,7 +1,7 @@
 # WebAI2API
 ![接入了CodeX!](READMEsrc/deepseekWebCodex.png)
 
-目标：实现个人免费的AI调用 + 从头实现 AI Agent（基于QQbot）。正在逐步推进。
+目标：实现个人免费的AI调用(如接入CodeX、接入QQbot)，兼容OpenAI接口，具备工具执行的能力。正在逐步推进。
 
 - 和 [`openclaw-zero-token`](https://github.com/linuxhsj/openclaw-zero-token) 的关系：API逆向参考了其代码（特别是PowChallenge）；没有openclaw的部分，只有API的封装，且专门用于Windows。
 - 和 [`foxhui:WebAI2API`](https://github.com/foxhui/WebAI2API) 的关系：目标一致（都是API封装，所以抄了它的项目名），但是我认为它对网页AI调用的开发还不够。且有很多花里胡哨的东西（太重）。
@@ -16,7 +16,7 @@
 - 坏处：只能写用户提示词；文件支持较差；要和官方博弈。
 
 项目特色：
-- 利用网页记忆管理实现了 responses API 的封装
+- 利用网页记忆管理实现了 responses API 的封装，可以接入CodeX
 - 利用提示词工程实现了 tool-calling
 
 ## 安装
@@ -118,10 +118,10 @@ pnpm run server -p 8787 --credentials="..." --browser --user-data-dir="..."
 - `responses`: 利用网页AI的记忆管理复用对话，不需要自己维护上下文，每次只需要发送增量。不会自动删除会话。调用示例请查看 [`test_responses.py`](src/test/test_responses.py)
 
 和官方调用不同，本项目决定不了请求的 `id`，因此采用了以下的策略：
-- 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。而具体message的id被我取消了。
+- 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。
 - 工具调用的id就是源码。返回调用结果时会将id和结果一起输出，这样AI就知道清晰的对应关系了
 
-流式返回目前只做了responsesAPI，是“假的”流：由于需要解析工具使用，因此先了获取所有响应，解析完再模拟的流。不过即使如此，也已经可以接入CodeX了！
+流式返回目前只做了responsesAPI，足以接入CodeX！
 
 CodeX配置如下：
 ```toml

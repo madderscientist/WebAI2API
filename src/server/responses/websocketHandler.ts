@@ -3,18 +3,15 @@
 import { WebSocket } from "ws";
 import {
     normalizeResponsesRequest,
-    message2ResponsesOutput,
     hasRunnableUserInput,
     type ResponsesCreateRequest,
-    ResponsesResponse,
 } from "./responsesType.js";
-import { buildResponseId, parseResponseId } from "../responseId.js";
+import { parseResponseId } from "../responseId.js";
 import { getModelConfig } from "../models.js";
 import { shouldUseToolPrompt } from "../toolPrompt.js";
 import type { ServerClient } from "../serverClient.js";
-import { parseResultFromStream } from "../../deepseekStreamParser.js";
 import { READY_RESPONSE_ID } from "./responsesType.js";
-import { streamSendRestResponse } from "./stream.js";
+import { streamEventsFromStream } from "./stream.js";
 
 export interface WebSocketMessage {
     type: "response.create";
@@ -169,7 +166,7 @@ export class WebSocketSessionManager {
                 this.instructions = rawInput.instructions;
             }
             // 校验 sessionId 是否相同
-            if (_tmp.sessionId !== this.sessionId) {
+            if (_tmp.sessionId && _tmp.sessionId !== this.sessionId) {
                 this.sendError({
                     code: "previous_response_not_found",
                     message: `Previous response with id '${_tmp.sessionId}' not found, expected ${this.sessionId}.`,
@@ -187,7 +184,7 @@ export class WebSocketSessionManager {
             const abortController = new AbortController();
             this.abortControllers.set(requestId, abortController);
 
-            try {
+            try {   // socket模式下都是流式的结构
                 const runResult = await this.client.runChatCompletion({
                     ...normalized,
                     modelType: modelConfig.modelType,
@@ -198,32 +195,18 @@ export class WebSocketSessionManager {
 
                 // 更新会话信息
                 this.sessionId = runResult.sessionId;
-                // 等待并解析
-                const parsed = await parseResultFromStream(runResult.body);
 
-                // socket模式下都是流式的结构
-                let input_token_est = normalized.message.length >> 2;
-                let output_token_est = (parsed.text.length) >> 2;
-                input_token_est = Math.floor(parsed.accumulated_token_usage * input_token_est / (input_token_est + output_token_est));
-                output_token_est = parsed.accumulated_token_usage - input_token_est;
-
-                const finalId = buildResponseId(runResult.sessionId, parsed.messageId);
-                const result: ResponsesResponse = {
-                    id: finalId,
-                    object: "response",
-                    created_at: Math.floor(Date.now() / 1000),
-                    status: "completed",
-                    model: modelConfig.model,
-                    output: message2ResponsesOutput(parsed.text, finalId, shouldUseToolPrompt(rawInput.tools, rawInput.tool_choice)),
-                    usage: {
-                        total_tokens: parsed.accumulated_token_usage,
-                        input_tokens: input_token_est,
-                        output_tokens: output_token_est,
-                    },
-                };
-                if (codexProtocol) {
-                    streamSendRestResponse((data) => this.sendRaw(data), result, 1);
-                }
+                const parsed = await streamEventsFromStream(
+                    runResult.body,
+                    shouldUseToolPrompt(rawInput.tools, rawInput.tool_choice),
+                    runResult.sessionId,
+                    modelConfig.model,
+                    normalized.message.length,
+                    (data) => {
+                        if (abortController.signal.aborted) return;
+                        this.sendRaw(data);
+                    }
+                );
                 this.lastInstructionMessageId = parsed.messageId ?? -114514;
             } finally {
                 this.abortControllers.delete(requestId);

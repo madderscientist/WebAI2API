@@ -10,6 +10,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "jsonrepair": "^3.14.0",
     "playwright-core": "1.58.2",
     "ws": "^8.17.1"
   },

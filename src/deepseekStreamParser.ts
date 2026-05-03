@@ -238,25 +238,30 @@ export class DeepseekStateDecoder {
  */
 export class DeepseekStreamParser extends SseStreamParser {
     decoder: DeepseekStateDecoder;
-    constructor(onDelta?: DeltaFn) {
+    onEvent?: (event: SSEvent) => void;  // 每当解析出一个事件时的回调，参数为事件对象
+    constructor(onDelta?: DeltaFn, onEvent?: (event: SSEvent) => void) {
         super();
         this.decoder = new DeepseekStateDecoder(onDelta);
+        this.onEvent = onEvent;
     }
     push(chunk: string): Array<SSEvent> {
         const events = super.push(chunk);
         for (const event of events) {
+            this.onEvent?.(event);
             this.decoder.push(event);
         } return events;
     }
     finish(): Array<SSEvent> {
         const tailEvents = super.finish();
         for (const event of tailEvents) {
+            this.onEvent?.(event);
             this.decoder.push(event);
         } return tailEvents;
     }
     parseAll(raw: string): Array<SSEvent> {
         const events = super.parseAll(raw);
         for (const event of events) {
+            this.onEvent?.(event);
             this.decoder.push(event);
         } return events;
     }
@@ -291,14 +296,14 @@ export async function parseResultFromStream(
     }
 
     return {
-        text: parser.text("RESPONSE"),
-        thinking: parser.text("THINK"),
+        text: parser.text("RESPONSE").trim(),
+        thinking: parser.text("THINK").trim(),
         messageId: toNumberOrNull(parser.decoder.state.message.response?.message_id),
         accumulated_token_usage: parser.decoder.state.message.response?.accumulated_token_usage ?? -1
     };
 }
 
-function toNumberOrNull(value: unknown): number | null {
+export function toNumberOrNull(value: unknown): number | null {
     if (value === null || value === undefined) return null;
     if (typeof value === "number" && Number.isFinite(value)) return value;
     if (typeof value === "string") {

@@ -117,15 +117,15 @@ export interface ResponseOutputFuncionCall extends ResponseOutputItemBase {
 
 export interface ResponsesError {
     code: 'server_error' | 'rate_limit_exceeded' | 'invalid_prompt' | 'vector_store_timeout' | 'invalid_image' | 'invalid_image_format' | 'invalid_base64_image'
-        | 'invalid_image_url' | 'image_too_large' | 'image_too_small' | 'image_parse_error' | 'image_content_policy_violation' | 'invalid_image_mode'
-        | 'image_file_too_large' | 'unsupported_image_media_type' | 'empty_image_file' | 'failed_to_download_image' | 'image_file_not_found';
+    | 'invalid_image_url' | 'image_too_large' | 'image_too_small' | 'image_parse_error' | 'image_content_policy_violation' | 'invalid_image_mode'
+    | 'image_file_too_large' | 'unsupported_image_media_type' | 'empty_image_file' | 'failed_to_download_image' | 'image_file_not_found';
     message: string;
 }
 
 // ===== 转为模型输入 =====
 import { ServerChatRequest } from '../serverClient.js';
 import { parseResponseId } from '../responseId.js';
-import { ToolDescription, buildToolPrompt, parseToolCalls, toolCallFormat } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat } from '../toolPrompt.js';
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
@@ -237,7 +237,7 @@ export function message2ResponsesOutput(msg: string, mark: string, matchTool = f
     const segments: ParsedSegment[] = [];
 
     if (matchTool) {
-        const toolCalls = parseToolCalls(msg);
+        const toolCalls = ToolCallParser.parseToolCalls(msg);
         for (const call of toolCalls) {
             segments.push({
                 start: call.start,
@@ -302,4 +302,17 @@ export function message2ResponsesOutput(msg: string, mark: string, matchTool = f
         outputs[i].id += `${mark}_${i}`;    // 需要保持全局唯一
     }
     return outputs;
+}
+
+// 估计usage字段 codex需要 缺失会报错
+export function estimateUsage(total: number, inputLength: number, outputLength: number) {
+    let input_token_est = inputLength >> 2; // 4字符1token的经验值
+    let output_token_est = outputLength >> 2;
+    input_token_est = Math.floor(total * input_token_est / (input_token_est + output_token_est));
+    output_token_est = total - input_token_est;
+    return {
+        input_tokens: input_token_est,
+        output_tokens: output_token_est,
+        total_tokens: total,
+    }
 }
