@@ -1,7 +1,7 @@
 # WebAI2API
 ![接入了CodeX!](READMEsrc/deepseekWebCodex.png)
 
-目标：实现个人免费的AI调用(如接入CodeX、接入QQbot)，兼容OpenAI接口，具备工具执行的能力。正在逐步推进。
+目标：实现个人免费的AI调用(如接入CodeX、Copilot、QQbot)，兼容OpenAI接口，具备工具执行的能力。正在逐步推进。
 
 - 和 [`openclaw-zero-token`](https://github.com/linuxhsj/openclaw-zero-token) 的关系：API逆向参考了其代码（特别是PowChallenge）；没有openclaw的部分，只有API的封装，且专门用于Windows。
 - 和 [`foxhui:WebAI2API`](https://github.com/foxhui/WebAI2API) 的关系：目标一致（都是API封装，所以抄了它的项目名），但是我认为它对网页AI调用的开发还不够。且有很多花里胡哨的东西（太重）。
@@ -121,8 +121,9 @@ pnpm run server -p 8787 --credentials="..." --browser --user-data-dir="..."
 - 响应的id为 `{sessionId}|{messageId}`，在 responses API 调用时需要用返回值的id更新请求的id。
 - 工具调用的id就是源码。返回调用结果时会将id和结果一起输出，这样AI就知道清晰的对应关系了
 
-流式返回目前只做了responsesAPI，足以接入CodeX！
 
+## 接入 Coding Agent
+### CodeX
 CodeX配置如下：
 ```toml
 model = "deepseek"
@@ -139,6 +140,9 @@ api_key = "do-not-need-api-key"
 supports_websockets = true
 ```
 注意：supports_websockets为true时会复用会话，为false时不会复用。
+
+### Copilot
+需要先安装插件 `OAI Compatible Provider for Copilot`，设置中`url`填写`http://localhost:8787/v1`即可。但是实测发现copilot的遵循不如codex。
 
 > [!CAUTION]
 > **免责声明**

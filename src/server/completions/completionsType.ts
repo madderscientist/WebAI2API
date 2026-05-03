@@ -31,7 +31,7 @@ export interface ChatCompletionToolMessageParam {
 export interface ChatCompletionAssistantMessageParam {
     role: 'assistant';
     content?: string | ChatCompletionContentPart[];
-    thinking_content?: string;   // 推理过程文本
+    reasoning_content?: string;   // 推理过程文本
     name?: string;
     tool_calls?: ChatCompletionMessageFunctionToolCall[];    // tool_calls 和 content 必有其一
 };
@@ -71,7 +71,7 @@ export interface ChatCompletionFunctionTool {
     };
 }
 export interface ChatCompletionMessageFunctionToolCall {
-    id: string;
+    id: string; // 是原始调用
     type: 'function';
     function: {
         name: string;
@@ -94,15 +94,18 @@ export interface ChatCompletionsResponse {
     choices: {
         index: number;
         message: ChatCompletionAssistantMessageParam;
+        finish_reason?: CompletionsFinishReason;
     }[];
     usage: {
         total_tokens: number;
+        prompt_tokens: number;
+        completion_tokens: number;
     };
 }
-
+export type CompletionsFinishReason = null | 'stop' | 'tool_calls' | 'length' | 'content_filter' | 'function_call';
 
 // ===== 转为模型输入 =====
-import { ToolDescription, buildToolPrompt, ToolCallParser } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat } from '../toolPrompt.js';
 
 export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequest>): ServerChatRequest {
     if (!Array.isArray(req.messages)) {
@@ -115,9 +118,12 @@ export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequ
         .map(tool => tool.function as ToolDescription);
     const toolprompt = buildToolPrompt(toolDescriptions, req.tool_choice);
     const textMessages = buildPrompt(req.messages);
-
+    let emphasisToolFormat = '';
+    if (textMessages.length > 4514) {
+        emphasisToolFormat = toolCallFormat;
+    }
     return {
-        message: [toolprompt, textMessages].filter((s): s is string => !!s).join('\n\n').trim(),
+        message: [toolprompt, textMessages, emphasisToolFormat].filter((s): s is string => !!s).join('\n\n').trim(),
         sessionId: undefined,
         parentMessageId: null,
         preempt: false,
@@ -146,7 +152,7 @@ function buildPrompt(messages: ChatCompletionMessageParam[]): string {
                     contentText.push(contentItem.text);
                 }
             }
-            lines.push(`<call>${message.tool_call_id}</call>\n<output>${contentText.join('\n')}</output>`);
+            lines.push(`${message.tool_call_id}\n<output>${contentText.join('\n')}</output>`);
         } else if (message.role === 'assistant') {
             lines.push('[assistant]:');
             if (typeof message.content === 'string') {
@@ -173,8 +179,6 @@ function buildPrompt(messages: ChatCompletionMessageParam[]): string {
             }
         }
     }
-
-    lines.push("[assistant]:");
     return lines.join("\n\n");
 }
 
@@ -197,65 +201,32 @@ export function message2CompletionsMessage(msg: string, matchTool = false): Chat
                     arguments: call.parameters,
                 }
             }));
-            // 不修改content了
-            // }
-            // const textChunks: string[] = [];
-            // const validCalls = [] as typeof toolCalls;
-            // let cursor = 0;
 
-            // for (const call of toolCalls) {
-            //     if (call.start < cursor) continue;
+            // 从content中删除tool调用的文本，替换为占位符
+            const textChunks: string[] = [];
+            let cursor = 0;
 
-            //     const textBefore = msg.slice(cursor, call.start).trim();
-            //     if (textBefore) textChunks.push(textBefore);
+            for (const call of toolCalls) {
+                if (call.start < cursor) continue;
 
-            //     validCalls.push(call);
-            //     textChunks.push(`<tool>${call.tool}<params>${call.parameters}</params></tool>`);
-            //     cursor = call.start + call.raw.length;
-            // }
+                const textBefore = msg.slice(cursor, call.start).trim();
+                if (textBefore) textChunks.push(textBefore);
 
-            // const tailText = msg.slice(cursor).trim();
-            // if (tailText) textChunks.push(tailText);
+                textChunks.push(`<tool_call>${call.tool}</tool_call>`);
+                cursor = call.start + call.raw.length;
+            }
 
-            // message.tool_calls = validCalls.map(call => ({
-            //     id: call.raw,
-            //     type: 'function',
-            //     function: {
-            //         name: call.tool,
-            //         arguments: call.parameters,
-            //     }
-            // }));
+            const tailText = msg.slice(cursor).trim();
+            if (tailText) textChunks.push(tailText);
 
-            // const cleanedContent = textChunks.join('\n\n').trim();
-            // if (cleanedContent) {
-            //     message.content = cleanedContent;
-            // } else {
-            //     delete message.content;
-            // }
+            const cleanedContent = textChunks.join('\n\n').trim();
+            if (cleanedContent) {
+                message.content = cleanedContent;
+            } else {
+                delete message.content;
+            }
         }
     }
 
     return message;
-}
-
-// 流式输出块
-export function buildCompletionsChunk(params: {
-    requestId: string;
-    model: string;
-    delta: Record<string, unknown>;
-    finishReason: string | null;
-}) {
-    return {
-        id: params.requestId,
-        object: "chat.completion.chunk",
-        created: Math.floor(Date.now() / 1000),
-        model: params.model,
-        choices: [
-            {
-                index: 0,
-                delta: params.delta,
-                finish_reason: params.finishReason,
-            },
-        ],
-    };
 }

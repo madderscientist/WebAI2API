@@ -18,7 +18,8 @@ import {
 import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
 import { MODEL_LIST, getModelConfig } from "./models.js";
-import { buildCompletionsChunk, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completions/completionsType.js";
+import { ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completions/completionsType.js";
+import { streamEventsFromStream as completionsSFS } from "./completions/stream.js";
 import { estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldUseToolPrompt } from "./toolPrompt.js";
 import { streamEventsFromStream } from "./responses/stream.js";
@@ -70,8 +71,9 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
             const thinking = parsed.thinking.trim();
             const msg = message2CompletionsMessage(parsed.text, useTool);
             if (thinking) {
-                msg.thinking_content = thinking;
+                msg.reasoning_content = thinking;
             }
+            const usage = estimateUsage(parsed.accumulated_token_usage, normalized.message.length, parsed.text.length + thinking.length);
             sendJson(res, 200, {
                 id: requestId,
                 object: "chat.completion",
@@ -80,59 +82,29 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
                 choices: [{
                     index: 0,
                     message: msg,
+                    finish_reason: msg.tool_calls ? "tool_calls" : "stop",
                 }],
                 usage: {
-                    total_tokens: parsed.accumulated_token_usage,
+                    total_tokens: usage.total_tokens,
+                    prompt_tokens: usage.input_tokens,
+                    completion_tokens: usage.output_tokens,
                 },
             } as ChatCompletionsResponse);
             return;
         }
 
-        // 处理流式返回
+        // 流式返回
         sendSseHeaders(res);
-        sendSseData(
-            res,
-            buildCompletionsChunk({
-                requestId,
-                model: modelConfig.model,
-                delta: { role: "assistant" },
-                finishReason: null,
-            }),
-        );
-
-        await parseResultFromStream(runResult.body, (type, delta) => {
-            if (abortController.signal.aborted || res.writableEnded) return;
-            if (type === "THINK") {
-                sendSseData(
-                    res,
-                    buildCompletionsChunk({
-                        requestId,
-                        model: modelConfig.model,
-                        delta: { reasoning_content: delta },
-                        finishReason: null,
-                    }),
-                );
-                return;
+        await completionsSFS(
+            runResult.body,
+            useTool,
+            requestId,
+            modelConfig.model,
+            normalized.message.length,
+            (data) => {
+                if (abortController.signal.aborted || res.writableEnded) return;
+                sendSseData(res, data);
             }
-            sendSseData(
-                res,
-                buildCompletionsChunk({
-                    requestId,
-                    model: modelConfig.model,
-                    delta: { content: delta },
-                    finishReason: null,
-                }),
-            );
-        });
-
-        sendSseData(
-            res,
-            buildCompletionsChunk({
-                requestId,
-                model: modelConfig.model,
-                delta: {},
-                finishReason: "stop",
-            }),
         );
         sendSseDone(res);
     } catch (error) {

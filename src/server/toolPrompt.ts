@@ -53,19 +53,28 @@ function buildToolChoicePrompt(toolChoice?: ToolChoice): string {
     } return 'You can\'t call any tools. Please answer the user\'s question directly in the same language.';
 }
 
-export const toolCallFormat = `[important]:
-YOU MUST CALL USING THE FOLLOWING FORMAT:
-\`\`\`
-<tool_call>tool1_name<params>{"param1":value1,...}</params></tool_call>
-<tool_call>tool2_name<params>{"param2":value2,...}</params></tool_call>
-\`\`\`
-Prohibit any other output formats!`;
-
-const toolCallPattern = /<tool_call>\s*([\s\S]*?)\s*<params>\s*([\s\S]*?)\s*<\/params>\s*<\/tool_call>/gs;
 const beginTag = '<tool_call>';
 const endTag = '</tool_call>';
 const paramsBeginTag = '<params>';
+const paramsBeginTag2 = '{';
 const paramsEndTag = '</params>';
+
+export const toolCallFormat = `[important]:
+When you need to use tools, you MUST output EXACTLY in format like these:
+\`\`\`
+${beginTag}
+	tool1_name
+	${paramsBeginTag}
+		{"param1":value1,...}
+	${paramsEndTag}
+${endTag}
+${beginTag}tool2_name<params>{"param2":value2,...}</params>${endTag}
+\`\`\`
+RULES:
+- Each tool call MUST be wrapped in <tool_call> ... </tool_call>
+- Inside, put the tool name, then <params> with JSON`;
+
+const toolCallPattern = /<tool_call>\s*([\s\S]*?)\s*<params>\s*([\s\S]*?)\s*<\/params>\s*<\/tool_call>/gs;
 
 // ===== 流式解析 =====
 interface ToolCallDeltaToolInfo {
@@ -140,12 +149,18 @@ export class ToolCallParser {
             } break;
 
             case ToolCallParseState.InToolCall: {
-                const i = this.buffer.indexOf(paramsBeginTag);
-                if (i < 0) break;   // name没有增量
+                let len = paramsBeginTag.length;
+                let i = this.buffer.indexOf(paramsBeginTag);
+                if (i < 0) {    // 用备选方案：'{'
+                    i = this.buffer.indexOf(paramsBeginTag2);
+                    if (i < 0) break;   // name没有增量
+                    len = paramsBeginTag2.length;
+                    i -= len;
+                }
                 this.state = ToolCallParseState.InParams;
                 const toolName = this.name = this.buffer.slice(0, i).trim();
                 events.push({ type: 'tool_call_name', data: toolName });
-                this.buffer = this.buffer.slice(i + paramsBeginTag.length);
+                this.buffer = this.buffer.slice(i + len);
                 events.push(...this.push(''));
             } break;
 
@@ -166,7 +181,7 @@ export class ToolCallParser {
                         // 遇到了结束标签但没有参数结束标签 直接进入下一个分支
                     }
                 } else {    // 正常遇到参数结束标签
-                    this.parameters = jsonrepair(this.parameters + this.buffer.slice(0, i));
+                    this.parameters = jsonrepair(this.parameters + this.buffer.slice(0, i)).trim();
                     events.push({ type: 'tool_call', data: { name: this.name, parameters: this.parameters } });
                     this.name = this.parameters = '';
                     this.buffer = this.buffer.slice(i + paramsEndTag.length);
@@ -179,7 +194,7 @@ export class ToolCallParser {
                 if (i < 0) break;
                 if (this.state === ToolCallParseState.InParams) {
                     // 遇到了</tool_call>但前面没有</params> 认为参数就是当前剩余的全部内容
-                    this.parameters = jsonrepair(this.parameters + this.buffer.slice(0, i));
+                    this.parameters = jsonrepair(this.parameters + this.buffer.slice(0, i)).trim();
                     events.push({ type: 'tool_call', data: { name: this.name, parameters: this.parameters } });
                     this.name = this.parameters = '';
                 }
