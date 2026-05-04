@@ -9,7 +9,19 @@ url = "http://localhost:8787/v1/responses"
 def execute_js_code(obj):
     """本地执行 JS 的函数"""
     try:
+        print(obj["javascript_code"])
         result = subprocess.run(["node", "-e", obj["javascript_code"]], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            return f"Execution Error: {result.stderr}"
+        return result.stdout.strip()
+    except Exception as e:
+        return f"System Error: {str(e)}"
+
+def execute_python_code(obj):
+    """本地执行 Python 的函数"""
+    try:
+        print(obj["python_code"])
+        result = subprocess.run(["python", "-c", obj["python_code"]], capture_output=True, text=True, timeout=5)
         if result.returncode != 0:
             return f"Execution Error: {result.stderr}"
         return result.stdout.strip()
@@ -24,13 +36,14 @@ def get_wearher(obj):
 
 tool_functions = {
     "exec_js": execute_js_code,
+    "exec_python": execute_python_code,
     "get_weather": get_wearher
 }
 
 input_items = [
     {
         "role": "user",
-        "content": "任务1：请计算斐波那契数列的第 11 项是多少？\n任务2：南京的天气是什么？",
+        "content": "任务1：请计算斐波那契数列的第 11 项是多少？（使用两种编程语言）\n任务2：南京的天气是什么？",
     }
 ]
 
@@ -48,6 +61,21 @@ tools = [
                 }
             },
             "required": ["javascript_code"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "exec_python",
+        "description": "Execute Python code. Pay attention to indentation. Use tabs to indent code. Ensure the result is printed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "python_code": {
+                    "type": "string",
+                    "description": "The Python code to execute."
+                }
+            },
+            "required": ["python_code"]
         }
     },
     {

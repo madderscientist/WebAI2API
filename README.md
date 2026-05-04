@@ -128,9 +128,7 @@ CodeX配置如下：
 ```toml
 model = "deepseek"
 model_provider = "local-service"
-
-[windows]
-sandbox = "elevated"
+model_supports_reasoning_summaries = false
 
 [model_providers.local-service]
 name = "My Local Codex Service"
@@ -141,8 +139,60 @@ supports_websockets = true
 ```
 注意：supports_websockets为true时会复用会话，为false时不会复用。
 
+> [!TIP]
+> CodeX执行 `Get-Content -Path .\README.md -Raw` 经常得到乱码，这是 GBK/GB2312 编码的文本被错误地用 UTF-8 解码后产生的现象。解决方法是加上 `-Encoding UTF8`。虽然大模型看得懂，但是最好还是设置一下PowerShell。具体做法是：
+> 1. 先 `$PROFILE | Select-Object *` 随便找一个配置文件修改
+> 2. 增加 `$PSDefaultParameterValues['Get-Content:Encoding'] = 'utf8'`
+
 ### Copilot
-需要先安装插件 `OAI Compatible Provider for Copilot`，设置中`url`填写`http://localhost:8787/v1`即可。但是实测发现copilot的遵循不如codex。
+需要先安装插件 `OAI Compatible Provider for Copilot`，设置中 `url` 填写 `http://localhost:8787/v1` 即可。
+
+在Windows下，codex的 `apply_patch` 工具会有问题，导致代码修改没有diff；而copilot就很好。不过copilot使用的是 completions API，每次会把消息全发出去，稍微浪费一些上行流量。
+
+## TODO
+[] 文件和图片的上传
+[] 等待ds放开图像理解模式
+
+## 文件结构
+```
+WebAI2API/realResponse
+实际采集到的网页端请求数据
+
+WebAI2API/src
+│  auth.ts			登录、获取凭证
+│  browser.ts		浏览器启动
+│  deepseekBrowserClient.ts	浏览器封装
+│  deepseekStreamParser.ts	deepseek的流式返回解析
+│  deepseekWebClient.ts		API封装
+│  sseStreamParser.ts		通用SSE流解析
+│  utils.ts					通用工具函数
+│  webScript.js		油猴脚本，用于测试API
+│  
+├─server			本地请求相关
+│  │  httpUtils.ts	发送
+│  │  models.ts		/models/ 这个接口的数据
+│  │  responseId.ts	对sessionId和messageId的封装与解析
+│  │  server.ts		入口
+│  │  serverClient.ts	对两种封装的统一
+│  │  toolPrompt.ts		prompt实现工具调用
+│  │  
+│  ├─completions
+│  │      completionsType.ts
+│  │      stream.ts
+│  │      
+│  └─responses
+│          responsesType.ts
+│          stream.ts
+│          websocketHandler.ts	专门为CodeX实现的
+│          
+├─test
+│      test_completions.py
+│      test_responses.py
+│      
+└─usage		直接用API/浏览器封装（不使用server）的示例
+        chat.ts
+        chat_browser.ts
+```
 
 > [!CAUTION]
 > **免责声明**

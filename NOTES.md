@@ -49,14 +49,16 @@ API逆向的缺点是得和厂商保持一致，特别是如果 `pow_challenge` 
 ## Tool Calling
 这是实现agent的重要一步。在 `openclaw-zero-token` 中提到了一篇arxiv论文，里面给出了代码，证明了用prompt实现工具调用的可行性。不过这篇文章有颇多问题，甚至有自相矛盾的地方。我结合自己的一点思考完成了prompt的构造，初步测试发现完全可用。
 
-prompt构造时，我选择了XML套JSON。因为这样正则表达式容易定位，我个人认为这样边界也比较清晰，AI可能更容易读（至少我容易读了）。没有进行实验。
+prompt构造时，我选择了XML套JSON。因为这样正则表达式容易定位，这对于流式识别很重要，因为边界（状态切换的标识）明确；AI可能也更容易读（至少我容易读了）。没有进行实验。
 
-我尝试提供了执行代码的tool。实测发现如果模型给出的python容易有缩进问题，所以改成js了。 `completions` 确实不适合toolCall，因为返回中toolcall和message是两个字段，那我到底要不要将message中的toolcall源文本删除呢？我没有删除，因为删除了影响阅读（工具调用可能在文本中间；当然可以用更复杂的判断实现更好的输出，但我懒得做了），此时 `tool_calls` 字段其实工具调用识别结果。
+我尝试提供了执行代码的tool。实测发现如果模型给出的python容易有缩进问题，所以改成js了（后记：发现python又没问题了，在提示词里加了一些对缩进的强调）。 `completions` 确实不适合toolCall，因为返回中toolcall和message是两个字，目前的做法是保留 `<tool_use>func_name</tool_use>` 作为占位。
 
 ## 接入CodeX
 CodeX只接收ResponsesAPI，刚好。捣鼓了半个下午把ResponsesAPI的流式返回写好了，接入CodeX果然可以！
 
-由于本项目是prompt模拟toolcall，所以要先获取所有响应再解析，最后才能将所有结果返回。所以模拟流式响应时，我略过了所有`delta`事件，只保留了结构的创建，数据的填充直接用`done`完成。最后`complete`返回了所有数据。
+【早期实现】由于本项目是prompt模拟toolcall，所以要先获取所有响应再解析，最后才能将所有结果返回。所以模拟流式响应时，我略过了所有`delta`事件，只保留了结构的创建，数据的填充直接用 `done` 完成。最后 `complete` 返回了所有数据。
+
+【现在】写了一个[状态机](src/server/toolPrompt.ts)来分辨流式输入中哪里是工具调用。相比于正则表达式，状态机允许XML标签不闭合。虽然字符串的拼接频繁了很多，但是好在是流式处理。淘汰了之前的“收集-正则匹配-伪流式输出”的函数，有打字机效果了。不过浏览器封装源头上就是伪流式（收集所有再发）。尽管如此，本项目工具调用的 `call_id` 设计为调用源码，因此函数的响应还是需要等待收集完毕后才一次性发出（`call_id` 需要一开始就指名），只有文本增量，没有函数参数增量。
 
 此时可以在网页对话中看到全过程。观察了CodeX的prompt，发现是markdown、XML混着用。官方文档中，非流式的ResponsesAPI有`ShellCall`这个返回，但是流响应中没有对应的事件；而CodeX是可以用shell的。当时还很疑惑，现在真相揭晓：有一个shell的tool。
 
@@ -163,13 +165,16 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
 7. 多轮对话即重复3和4
 
 ### 关于instructions
-`https://deepwiki.com/openai/openai-python/4.2.2-conversation-and-state-management` 这里说每次会话依然要发送 `instructions`，但是会覆盖系统提示词而不是append。但是本项目的使用环境下，无法替换历史。最偷懒的方式是只有第一次发送，后面就不发送，但这无法体现instructions的更改。因此设置了一个比较，如果相同则每隔一时间注入一次，否则直接发新的。因此，如果想要完整的CodeX体验，建议不开socket。
+[这里](https://deepwiki.com/openai/openai-python/4.2.2-conversation-and-state-management) 说每次会话依然要发送 `instructions`，但是会覆盖系统提示词而不是append。但是本项目的使用环境下，无法替换历史。最偷懒的方式是只有第一次发送，后面就不发送，但这无法体现instructions的更改。因此设置了一个比较，如果相同则每隔一时间注入一次，否则直接发新的。因此，如果想要完整的CodeX体验，建议不开socket。
 
 ### 关于压缩
-官方文档说有，但我还没做
+没做。Codex首先会检查provider是否支持远程压缩，只有当 `supports_remote_compaction()` 返回true时，才会调用远程compact API。如果provider不支持远程压缩，Codex会使用本地压缩：
+1. 本地压缩使用预定义的 summarization prompt
+2. 在当前 session 内运行，生成 summary assistant message
+所以完全可以不实现。
 
 ## token消耗
-codex需要token统计。于是我观察了一下deepseek给的`"accumulated_token_usage","v":45`是什么含义。我在一个session进行了如下对话：
+codex需要token统计。于是我观察了一下deepseek给的 `"accumulated_token_usage","v":45` 是什么含义。我在一个session进行了如下对话：
 ```
 我:回复一个字
 DS:好
@@ -188,6 +193,7 @@ DS:好
 ## 收获
 - 第一次接触 `playwright` ，学了一些浏览器相关的基础
 - 第一次和LLM相关的开发，第一次动手写 Agent，第一次了解具体的请求和规范。我觉得这是一个很好的起点（从请求开始，够底层）
+- 了解了当前流行 coding agent 的实现方式
 - 升级了一波工具(js->ts; ts-node->tsc; npm->pnpm)
 
 我对Agent开发的看法保持不变：原理很简单，实现虽然不容易，但都是脏累活。此类型开发中容错和架构设计更重要。
