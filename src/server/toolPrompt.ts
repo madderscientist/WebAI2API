@@ -53,8 +53,10 @@ function buildToolChoicePrompt(toolChoice?: ToolChoice): string {
     } return 'You can\'t call any tools. Please answer the user\'s question directly in the same language.';
 }
 
-const beginTag = '<tool_call>';
-const endTag = '</tool_call>';
+// 模型往往犯蠢，不按照格式输出，所以设计了多种标签
+// 第一个应该是最长的
+const beginTags = ['<tool_call>', '<tool>', '<tool_use>', '<call>'];
+const endTags = ['</tool_call>', '</tool>', '</tool_use>', '</call>'];
 const paramsBeginTag = '<params>';
 const paramsBeginTag2 = '{';
 const paramsEndTag = '</params>';
@@ -62,13 +64,13 @@ const paramsEndTag = '</params>';
 export const toolCallFormat = `[important]:
 When you need to use tools, you MUST output EXACTLY in format like these:
 \`\`\`
-${beginTag}
+${beginTags[0]}
 	tool1_name
 	${paramsBeginTag}
 		{"param1":value1,...}
 	${paramsEndTag}
-${endTag}
-${beginTag}tool2_name<params>{"param2":value2,...}</params>${endTag}
+${endTags[0]}
+${beginTags[0]}tool2_name<params>{"param2":value2,...}</params>${endTags[0]}
 \`\`\`
 RULES:
 - Each tool call MUST be wrapped in <tool_call> ... </tool_call>
@@ -118,7 +120,7 @@ export class ToolCallParser {
         return results;
     }
     static buildCallId(toolName: string, parameters: string): string {
-        return `${beginTag}${toolName}${paramsBeginTag}${parameters}${paramsEndTag}${endTag}`;
+        return `${beginTags[0]}${toolName}${paramsBeginTag}${parameters}${paramsEndTag}${endTags[0]}`;
     }
 
     private buffer = '';
@@ -131,7 +133,15 @@ export class ToolCallParser {
         const events: ToolCallDelta[] = [];
         switch (this.state) {
             case ToolCallParseState.Normal: {
-                const i = this.buffer.indexOf(beginTag);
+                let i = -1;
+                let beginTag = beginTags[0];
+                for (const tag of beginTags) {
+                    i = this.buffer.indexOf(tag);
+                    if (i >= 0) {
+                        beginTag = tag;
+                        break;
+                    }
+                }
                 if (i < 0) {
                     if (this.buffer.length >= beginTag.length) {
                         // 前面普通文本直接流出去
@@ -167,7 +177,14 @@ export class ToolCallParser {
             case ToolCallParseState.InParams: {
                 let i = this.buffer.indexOf(paramsEndTag);
                 if (i < 0) {
-                    i = this.buffer.indexOf(endTag);
+                    let endTag = endTags[0];
+                    for (const tag of endTags) {
+                        i = this.buffer.indexOf(tag);
+                        if (i >= 0) {
+                            endTag = tag;
+                            break;
+                        }
+                    }
                     if (i < 0) {
                         // 还没有完整的参数或结束标签，先把参数增量流出去
                         if (this.buffer.length >= paramsEndTag.length) {
@@ -190,7 +207,15 @@ export class ToolCallParser {
             }
             // 进入下面分支的情况：1. 已经遇到</params>但还没有遇到</tool_call>；2. 遇到了</tool_call>但前面没有</params>
             case ToolCallParseState.WatchingEndTag: {
-                const i = this.buffer.indexOf(endTag);
+                let i = -1;
+                let endTag = '';
+                for (const tag of endTags) {
+                    i = this.buffer.indexOf(tag);
+                    if (i >= 0) {
+                        endTag = tag;
+                        break;
+                    }
+                }
                 if (i < 0) break;
                 if (this.state === ToolCallParseState.InParams) {
                     // 遇到了</tool_call>但前面没有</params> 认为参数就是当前剩余的全部内容
