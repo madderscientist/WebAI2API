@@ -7,10 +7,12 @@ export class DeepseekStateDecoder {
     static NUM_RE = /^-?\d+$/;
     state: {
         ready: Record<string, any> | null;
+        hint: Record<string, any> | null;
+        update_session: Record<string, any>[];
+        message: Record<string, any>;
         title: string | null;
         close: Record<string, any> | null;
-        updateSession: Record<string, any>[];
-        message: Record<string, any>;
+        [key: string]: any; // 可能还有没有发现的字段
     };
     private currentPath: string;
     private currentOp: string;
@@ -21,8 +23,9 @@ export class DeepseekStateDecoder {
             ready: null,
             title: null,
             close: null,
-            updateSession: [],
+            update_session: [],
             message: {},
+            hint: null,
         };
         this.currentPath = 'message';
         this.currentOp = 'SET';
@@ -179,7 +182,7 @@ export class DeepseekStateDecoder {
                 this.state.ready = data;
                 return;
             case 'update_session':
-                this.state.updateSession.push(data);
+                this.state.update_session.push(data);
                 return;
             case 'title':
                 this.state.title = data.content || null;
@@ -196,6 +199,11 @@ export class DeepseekStateDecoder {
                 }
                 this.applyOperation(this.currentPath, this.currentOp, data.v);
                 return;
+            case 'hint':
+                this.state.hint = data;
+                return;
+            default:
+                this.state[event] = data;
         }
     }
 
@@ -293,6 +301,10 @@ export async function parseResultFromStream(
             break;
         }
         parser.push(decoder.decode(value, { stream: true }));
+    }
+
+    if (parser.decoder.state.hint && parser.decoder.state.hint.type === 'error') {
+        throw new Error(`Deepseek API Error: ${parser.decoder.state.hint.content}`);
     }
 
     return {

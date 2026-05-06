@@ -1,0 +1,9 @@
+event: ready
+data: {"request_message_id":43,"response_message_id":44,"model_type":"default"}
+
+event: hint
+data: {"type":"error","content":"服务器繁忙，请稍后重试","clear_response":true,"finish_reason":"parallel_chat_limit_by_queue"}
+
+event: close
+data: {"click_behavior":"retry","auto_resume":false}
+
