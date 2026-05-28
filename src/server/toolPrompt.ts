@@ -177,13 +177,9 @@ export class ToolCallParser {
             case ToolCallParseState.InParams: {
                 let i = this.buffer.indexOf(paramsEndTag);
                 if (i < 0) {
-                    let endTag = endTags[0];
                     for (const tag of endTags) {
                         i = this.buffer.indexOf(tag);
-                        if (i >= 0) {
-                            endTag = tag;
-                            break;
-                        }
+                        if (i >= 0) break;
                     }
                     if (i < 0) {
                         // 还没有完整的参数或结束标签，先把参数增量流出去

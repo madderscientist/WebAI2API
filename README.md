@@ -150,8 +150,10 @@ supports_websockets = true
 在Windows下，codex的 `apply_patch` 工具会有问题，导致代码修改没有diff；而copilot就很好。不过copilot使用的是 completions API，每次会把消息全发出去，稍微浪费一些上行流量。
 
 ## TODO
-[] 文件和图片的上传
-[] 等待ds放开图像理解模式
+- [] 文件和图片的上传
+- [] 等待ds放开图像理解模式
+
+不过目前只上传图片链接，DS也会进行OCR，非常适合QQbot，倒是对文件的需求不太大。
 
 ## 文件结构
 ```
