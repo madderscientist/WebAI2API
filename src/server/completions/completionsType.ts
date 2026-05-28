@@ -9,10 +9,10 @@ export interface ChatCompletionsRequest {
     messages: ChatCompletionMessageParam[];
     stream?: boolean;
     tools?: ChatCompletionFunctionTool[];
-    tool_choice?: ToolChoice;
+    tool_choice: ToolChoice;    // 在 asChatCompletionsRequest 中会自动填充默认值
 }
 
-export type ChatCompletionMessageParam = 
+export type ChatCompletionMessageParam =
     | ChatCompletionBasicMessageParam
     | ChatCompletionAssistantMessageParam
     | ChatCompletionToolMessageParam;
@@ -37,7 +37,7 @@ export interface ChatCompletionAssistantMessageParam {
 };
 
 // content
-export type ChatCompletionContentPart = 
+export type ChatCompletionContentPart =
     | ChatCompletionContentPartText
     | ChatCompletionContentPartImage
     | FileContentPart;
@@ -78,7 +78,7 @@ export interface ChatCompletionMessageFunctionToolCall {
         arguments: string;  // json格式
     };
 }
-export type ToolChoice = 
+export type ToolChoice =
     | 'none'
     | 'auto'
     | 'required'
@@ -105,17 +105,24 @@ export interface ChatCompletionsResponse {
 export type CompletionsFinishReason = null | 'stop' | 'tool_calls' | 'length' | 'content_filter' | 'function_call';
 
 // ===== 转为模型输入 =====
-import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, shouldParseToolCall } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, autoToolChoice, shouldParseToolCall } from '../toolPrompt.js';
 
-export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequest>): ServerChatRequest {
+// 类型转换 & 填充默认值
+export function asChatCompletionsRequest(req: any): ChatCompletionsRequest {
+    if (!Array.isArray(req.messages)) req.messages = [];
+    req.tool_choice ??= autoToolChoice(req.tools);
+    return req as ChatCompletionsRequest;
+}
+
+export function normalizeChatCompletionsRequest(req: ChatCompletionsRequest): ServerChatRequest {
     if (!Array.isArray(req.messages)) throw new Error('Missing messages array.');
-    
+
     // 构建 prompt 文本
-    const parsetool = shouldParseToolCall(req.tools, req.tool_choice);
+    const parsetool = shouldParseToolCall(req.tool_choice, req.tools);
     const toolDescriptions = (req.tools ?? [])
-        .filter((tool)=>tool.type === 'function')
+        .filter((tool) => tool.type === 'function')
         .map(tool => tool.function as ToolDescription);
-    const toolprompt = buildToolPrompt(toolDescriptions, req.tool_choice);
+    const toolprompt = buildToolPrompt(req.tool_choice, toolDescriptions);
     const textMessages = buildPrompt(req.messages);
     let emphasisToolFormat = '';
     if (parsetool && textMessages.length > 4514) {

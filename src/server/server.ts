@@ -18,9 +18,9 @@ import {
 import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
 import { MODEL_LIST, getModelConfig } from "./models.js";
-import { ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, type ChatCompletionsRequest } from "./completions/completionsType.js";
+import { asChatCompletionsRequest, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest } from "./completions/completionsType.js";
 import { streamEventsFromStream as completionsSFS } from "./completions/stream.js";
-import { estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesCreateRequest, type ResponsesResponse } from "./responses/responsesType.js";
+import { asResponsesCreateRequest, estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesResponse } from "./responses/responsesType.js";
 import { shouldParseToolCall } from "./toolPrompt.js";
 import { streamEventsFromStream } from "./responses/stream.js";
 import { WebSocketSessionManager } from "./responses/websocketHandler.js";
@@ -40,10 +40,10 @@ async function handleModels(res: ServerResponse) {
 }
 
 async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, client: ServerClient) {
-    const rawInput = await readRequestJson(req) as ChatCompletionsRequest;
+    const rawInput = asChatCompletionsRequest(await readRequestJson(req));
     const normalized = normalizeChatCompletionsRequest(rawInput);
     const modelConfig = getModelConfig(rawInput.model || 'deepseek');
-    const useTool = shouldParseToolCall(rawInput.tools, rawInput.tool_choice);
+    const useTool = shouldParseToolCall(rawInput.tool_choice, rawInput.tools);
 
     if (!normalized.message.trim()) {
         sendJson(res, 400, errorResponse("messages must include at least one non-empty message."));
@@ -129,9 +129,9 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
 }
 
 async function handleResponses(req: IncomingMessage, res: ServerResponse, client: ServerClient) {
-    const rawInput = await readRequestJson(req) as ResponsesCreateRequest;
+    const rawInput = asResponsesCreateRequest(await readRequestJson(req));
     const modelConfig = getModelConfig(rawInput.model);
-    const useTool = shouldParseToolCall(rawInput.tools, rawInput.tool_choice);
+    const useTool = shouldParseToolCall(rawInput.tool_choice, rawInput.tools);
     const normalized = normalizeResponsesRequest(rawInput);
     if (!normalized.message) {
         sendJson(res, 400, errorResponse("input must include at least one non-empty message."));

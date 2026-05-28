@@ -5,6 +5,7 @@ import {
     normalizeResponsesRequest,
     hasRunnableUserInput,
     type ResponsesCreateRequest,
+    asResponsesCreateRequest,
 } from "./responsesType.js";
 import { parseResponseId } from "../responseId.js";
 import { getModelConfig } from "../models.js";
@@ -47,12 +48,7 @@ export class WebSocketSessionManager {
         codexProtocol: boolean;
     } | null {
         if (message.type === "response.create") {   // Codex 协议特有的请求类型
-            const payload = message as unknown as ResponsesCreateRequest;
-            if (!payload) return null;
-            if (payload.input === undefined || payload.input === null) {
-                console.warn("[WebSocket] response.create payload missing input field");
-                return null;
-            }
+            const payload = asResponsesCreateRequest(message);
             return {
                 request: payload,
                 codexProtocol: true,    // 标记为 Codex 的请求
@@ -198,7 +194,7 @@ export class WebSocketSessionManager {
 
                 const parsed = await streamEventsFromStream(
                     runResult.body,
-                    shouldParseToolCall(rawInput.tools, rawInput.tool_choice),
+                    shouldParseToolCall(rawInput.tool_choice, rawInput.tools),
                     runResult.sessionId,
                     modelConfig.model,
                     normalized.message.length,

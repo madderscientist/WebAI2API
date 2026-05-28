@@ -9,7 +9,7 @@ export interface ResponsesCreateRequest {
     input: string | ResponsesInputItem[];
     stream?: boolean;
     tools?: ResponsesFunctionTool[];
-    tool_choice?: ToolChoice;
+    tool_choice: ToolChoice;    // 在 asResponsesCreateRequest 中会自动填充默认值
     // 对话上下文关联 放弃了conversation字段
     previous_response_id?: string; // session_id|message_id
 }
@@ -125,7 +125,14 @@ export interface ResponsesError {
 // ===== 转为模型输入 =====
 import { ServerChatRequest } from '../serverClient.js';
 import { parseResponseId } from '../responseId.js';
-import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, shouldParseToolCall } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, autoToolChoice, shouldParseToolCall } from '../toolPrompt.js';
+
+// 类型转换 & 填充默认值
+export function asResponsesCreateRequest(req: any): ResponsesCreateRequest {
+    if (typeof req.input !== 'string' && !Array.isArray(req.input)) req.input = '';
+    req.tool_choice ??= autoToolChoice(req.tools);
+    return req as ResponsesCreateRequest;
+}
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
@@ -133,13 +140,13 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     const { sessionId, messageId } = parseResponseId(prevId);
 
     // 构建prompt
-    const parsetool = shouldParseToolCall(x.tools, x.tool_choice);
+    const parsetool = shouldParseToolCall(x.tool_choice, x.tools);
     const toolDescriptions = (x.tools ?? []).map(tool => ({
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
     } as ToolDescription));
-    const toolprompt = buildToolPrompt(toolDescriptions, x.tool_choice);
+    const toolprompt = buildToolPrompt(x.tool_choice, toolDescriptions);
     const instructions = x.instructions ? `[system]:\n${x.instructions}` : '';
     const textMessages = messageFromInputItem(x.input, toolprompt.length < 10 && !instructions);
     let emphasisToolFormat = '';

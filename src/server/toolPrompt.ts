@@ -7,14 +7,19 @@ export interface ToolDescription {
     parameters?: Record<string, unknown>;
 }
 
-export function shouldParseToolCall(tools?: Array<any>, toolChoice?: ToolChoice): boolean {
-    if (!tools || tools.length === 0 || toolChoice === 'none') return false;
-    return true;
+export function autoToolChoice(tools?: Array<any>): ToolChoice {
+    if (!tools || tools.length === 0) return 'none';
+    return 'auto';
 }
 
-export function buildToolPrompt(tools?: ToolDescription[], toolChoice?: ToolChoice): string {
-    if (!tools || tools.length === 0) return '';
-    if (toolChoice === 'none') return `[tool instruction]:\n${buildToolChoicePrompt('none')}`;    // 有工具但不让用
+export function shouldParseToolCall(toolChoice: ToolChoice, tools?: Array<any>): boolean {
+    return toolChoice !== 'none';
+    // if (!tools || tools.length === 0 || toolChoice === 'none') return false;
+    // return true;
+}
+
+export function buildToolPrompt(toolChoice: ToolChoice, tools?: ToolDescription[]): string {
+    if (!tools || tools.length === 0 || toolChoice === 'none') return `[tool instruction]:\n${buildToolChoicePrompt(toolChoice)}`;
 
     const INSTRUCTION = `
 [tool instruction]:
