@@ -105,21 +105,20 @@ export interface ChatCompletionsResponse {
 export type CompletionsFinishReason = null | 'stop' | 'tool_calls' | 'length' | 'content_filter' | 'function_call';
 
 // ===== 转为模型输入 =====
-import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, shouldParseToolCall } from '../toolPrompt.js';
 
 export function normalizeChatCompletionsRequest(req: Partial<ChatCompletionsRequest>): ServerChatRequest {
-    if (!Array.isArray(req.messages)) {
-        throw new Error('Missing messages array.');
-    }
+    if (!Array.isArray(req.messages)) throw new Error('Missing messages array.');
     
     // 构建 prompt 文本
+    const parsetool = shouldParseToolCall(req.tools, req.tool_choice);
     const toolDescriptions = (req.tools ?? [])
         .filter((tool)=>tool.type === 'function')
         .map(tool => tool.function as ToolDescription);
     const toolprompt = buildToolPrompt(toolDescriptions, req.tool_choice);
     const textMessages = buildPrompt(req.messages);
     let emphasisToolFormat = '';
-    if (textMessages.length > 4514) {
+    if (parsetool && textMessages.length > 4514) {
         emphasisToolFormat = toolCallFormat;
     }
     return {

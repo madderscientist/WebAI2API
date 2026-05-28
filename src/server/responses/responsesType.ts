@@ -125,7 +125,7 @@ export interface ResponsesError {
 // ===== 转为模型输入 =====
 import { ServerChatRequest } from '../serverClient.js';
 import { parseResponseId } from '../responseId.js';
-import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat } from '../toolPrompt.js';
+import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, shouldParseToolCall } from '../toolPrompt.js';
 
 export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
@@ -133,6 +133,7 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     const { sessionId, messageId } = parseResponseId(prevId);
 
     // 构建prompt
+    const parsetool = shouldParseToolCall(x.tools, x.tool_choice);
     const toolDescriptions = (x.tools ?? []).map(tool => ({
         name: tool.name,
         description: tool.description,
@@ -142,7 +143,7 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
     const instructions = x.instructions ? `[system]:\n${x.instructions}` : '';
     const textMessages = messageFromInputItem(x.input, toolprompt.length < 10 && !instructions);
     let emphasisToolFormat = '';
-    if (instructions.length + textMessages.length > 4514) {
+    if (parsetool && instructions.length + textMessages.length > 4514) {
         emphasisToolFormat = toolCallFormat;
     }
 

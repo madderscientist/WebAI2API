@@ -7,7 +7,7 @@ export interface ToolDescription {
     parameters?: Record<string, unknown>;
 }
 
-export function shouldUseToolPrompt(tools?: Array<any>, toolChoice?: ToolChoice): boolean {
+export function shouldParseToolCall(tools?: Array<any>, toolChoice?: ToolChoice): boolean {
     if (!tools || tools.length === 0 || toolChoice === 'none') return false;
     return true;
 }
@@ -119,7 +119,12 @@ export class ToolCallParser {
         }
         return results;
     }
+
+    static shortCallParamLen = 200;  // 节省消息量
     static buildCallId(toolName: string, parameters: string): string {
+        if (parameters.length > this.shortCallParamLen + 3) {
+            parameters = parameters.slice(0, this.shortCallParamLen) + '...';
+        }
         return `${beginTags[0]}${toolName}${paramsBeginTag}${parameters}${paramsEndTag}${endTags[0]}`;
     }
 

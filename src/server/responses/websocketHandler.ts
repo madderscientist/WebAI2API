@@ -8,7 +8,7 @@ import {
 } from "./responsesType.js";
 import { parseResponseId } from "../responseId.js";
 import { getModelConfig } from "../models.js";
-import { shouldUseToolPrompt } from "../toolPrompt.js";
+import { shouldParseToolCall } from "../toolPrompt.js";
 import type { ServerClient } from "../serverClient.js";
 import { READY_RESPONSE_ID } from "./responsesType.js";
 import { streamEventsFromStream } from "./stream.js";
@@ -198,7 +198,7 @@ export class WebSocketSessionManager {
 
                 const parsed = await streamEventsFromStream(
                     runResult.body,
-                    shouldUseToolPrompt(rawInput.tools, rawInput.tool_choice),
+                    shouldParseToolCall(rawInput.tools, rawInput.tool_choice),
                     runResult.sessionId,
                     modelConfig.model,
                     normalized.message.length,
