@@ -245,7 +245,7 @@ export function message2ResponsesOutput(msg: string, mark: string, matchTool = f
                 end: call.start + call.raw.length,
                 output: {
                     type: 'function_call',
-                    call_id: call.raw,  // 【重要】设置为源码
+                    call_id: ToolCallParser.buildCallId(call.tool, call.parameters),
                     name: call.tool,
                     arguments: call.parameters,
                     id: 'func_call_',

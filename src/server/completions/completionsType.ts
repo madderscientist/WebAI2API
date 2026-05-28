@@ -193,7 +193,7 @@ export function message2CompletionsMessage(msg: string, matchTool = false): Chat
 
         if (toolCalls.length > 0) {
             message.tool_calls = toolCalls.map(call => ({
-                id: call.raw,
+                id: ToolCallParser.buildCallId(call.tool, call.parameters),
                 type: 'function',
                 function: {
                     name: call.tool,
