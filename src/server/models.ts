@@ -3,6 +3,7 @@ export const MODEL_LIST = [
     "deepseek",
     "deepseek-thinking",
     "deepseek-expert",
+    "deepseek-expert-thinking",
     "deepseek-nosearch",
     "deepseek-thinking-nosearch",
     "deepseek-expert-nosearch",

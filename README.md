@@ -145,7 +145,9 @@ supports_websockets = true
 > 2. 增加 `$PSDefaultParameterValues['Get-Content:Encoding'] = 'utf8'`
 
 ### Copilot
-需要先安装插件 `OAI Compatible Provider for Copilot`，设置中 `url` 填写 `http://localhost:8787/v1` 即可。
+【老版本VSCode】需要先安装插件 `OAI Compatible Provider for Copilot`，设置中 `url` 填写 `http://localhost:8787/v1` 即可。
+
+【新版本VSCode】从1.122.0开始，VSCode内置了自定义端点，无需额外插件。直接添加即可。然而使用 Responses API 存在会话不被复用的问题，建议用 completions API。
 
 在Windows下，codex的 `apply_patch` 工具会有问题，导致代码修改没有diff；而copilot就很好。不过copilot使用的是 completions API，每次会把消息全发出去，稍微浪费一些上行流量。
 
