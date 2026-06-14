@@ -56,8 +56,8 @@ export class DeepSeekWebClient {
             Referer: "https://chat.deepseek.com/",
             Origin: "https://chat.deepseek.com",
             "x-client-platform": "web",
-            "x-client-version": "1.8.0",    // 版本号和响应格式有关
-            "x-app-version": "20241129.1",
+            "x-client-version": "2.0.0",    // 版本号和响应格式有关
+            "x-app-version": "2.0.0",
             "x-client-locale": "zh_CN",
             "x-client-timezone-offset": "28800",
         };

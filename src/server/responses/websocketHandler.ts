@@ -13,6 +13,7 @@ import { shouldParseToolCall } from "../toolPrompt.js";
 import type { ServerClient } from "../serverClient.js";
 import { READY_RESPONSE_ID } from "./responsesType.js";
 import { streamEventsFromStream } from "./stream.js";
+import { clearResponseSessionState, enqueueResponseSessionRequest, rememberResponseSessionMessageId, resolveQueuedParentMessageId } from "./sessionQueue.js";
 
 export interface WebSocketMessage {
     type: "response.create";
@@ -180,9 +181,16 @@ export class WebSocketSessionManager {
             const abortController = new AbortController();
             this.abortControllers.set(requestId, abortController);
 
-            try {   // socket模式下都是流式的结构
+            const requestSessionId = normalized.sessionId ?? this.sessionId;
+            const queueSessionId = requestSessionId && !requestSessionId.startsWith(READY_RESPONSE_ID) ? requestSessionId : null;
+
+            const execute = async () => {
+                // socket模式下都是流式的结构
                 const runResult = await this.client.runChatCompletion({
                     ...normalized,
+                    parentMessageId: queueSessionId
+                        ? resolveQueuedParentMessageId(queueSessionId, normalized.parentMessageId)
+                        : normalized.parentMessageId,
                     modelType: modelConfig.modelType,
                     searchEnabled: modelConfig.searchEnabled,
                     thinkingEnabled: modelConfig.thinkingEnabled,
@@ -203,7 +211,16 @@ export class WebSocketSessionManager {
                         this.sendRaw(data);
                     }
                 );
+                rememberResponseSessionMessageId(runResult.sessionId, parsed.messageId);
                 this.lastInstructionMessageId = parsed.messageId ?? -114514;
+            };
+
+            try {
+                if (queueSessionId) {
+                    await enqueueResponseSessionRequest(queueSessionId, execute);
+                } else {
+                    await execute();
+                }
             } finally {
                 this.abortControllers.delete(requestId);
             }
@@ -268,6 +285,7 @@ export class WebSocketSessionManager {
             } catch (error) {
                 console.warn(`[WebSocket] Failed to delete session sessionId=${this.sessionId}:`, error);
             }
+            clearResponseSessionState(this.sessionId);
         }
         console.log("[WebSocket] Cleanup done");
     }

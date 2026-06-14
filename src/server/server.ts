@@ -21,6 +21,7 @@ import { MODEL_LIST, getModelConfig } from "./models.js";
 import { asChatCompletionsRequest, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest } from "./completions/completionsType.js";
 import { streamEventsFromStream as completionsSFS } from "./completions/stream.js";
 import { asResponsesCreateRequest, estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesResponse } from "./responses/responsesType.js";
+import { enqueueResponseSessionRequest, rememberResponseSessionMessageId, resolveQueuedParentMessageId } from "./responses/sessionQueue.js";
 import { shouldParseToolCall } from "./toolPrompt.js";
 import { streamEventsFromStream } from "./responses/stream.js";
 import { WebSocketSessionManager } from "./responses/websocketHandler.js";
@@ -141,9 +142,13 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
     const abortController = new AbortController();
     req.on("close", () => abortController.abort());
 
-    try {
+    const queueSessionId = normalized.sessionId ?? null;
+    const execute = async () => {
         const runResult = await client.runChatCompletion({
             ...normalized,
+            parentMessageId: queueSessionId
+                ? resolveQueuedParentMessageId(queueSessionId, normalized.parentMessageId)
+                : normalized.parentMessageId,
             signal: abortController.signal,
             modelType: modelConfig.modelType,
             searchEnabled: modelConfig.searchEnabled,
@@ -153,7 +158,7 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
 
         if (rawInput.stream === true) {
             sendSseHeaders(res);
-            await streamEventsFromStream(
+            const parsed = await streamEventsFromStream(
                 runResult.body,
                 useTool,
                 requestId,
@@ -164,35 +169,46 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
                     sendSseData(res, data);
                 }
             );
+            rememberResponseSessionMessageId(requestId, parsed.messageId);
             sendSseDone(res);
+            return;
+        }
+
+        // 一次性解析完
+        const parsed = await parseResultFromStream(runResult.body);
+        const id = buildResponseId(requestId, parsed.messageId);
+        const output = message2ResponsesOutput(parsed.text, id, useTool);
+        if (parsed.thinking.trim()) {   // 添加思考字段
+            output.push({
+                type: 'reasoning',
+                content: [{
+                    type: 'output_text',
+                    text: parsed.thinking.trim(),
+                    annotations: [],
+                }],
+                role: 'assistant',
+                id: `thinking_${id}`,
+                status: 'completed',
+            } as ResponseOutputMessage);
+        }
+        rememberResponseSessionMessageId(requestId, parsed.messageId);
+        const result: ResponsesResponse = {
+            id,
+            object: "response",
+            created_at: Math.floor(Date.now() / 1000),
+            status: "completed",
+            model: modelConfig.model,
+            output,
+            usage: estimateUsage(parsed.accumulated_token_usage, normalized.message.length, parsed.text.length + parsed.thinking.length),
+        };
+        sendJson(res, 200, result);
+    };
+
+    try {
+        if (queueSessionId) {
+            await enqueueResponseSessionRequest(queueSessionId, execute);
         } else {
-            // 一次性解析完
-            const parsed = await parseResultFromStream(runResult.body);
-            const id = buildResponseId(requestId, parsed.messageId);
-            const output = message2ResponsesOutput(parsed.text, id, useTool);
-            if (parsed.thinking.trim()) {   // 添加思考字段
-                output.push({
-                    type: 'reasoning',
-                    content: [{
-                        type: 'output_text',
-                        text: parsed.thinking.trim(),
-                        annotations: [],
-                    }],
-                    role: 'assistant',
-                    id: `thinking_${id}`,
-                    status: 'completed',
-                } as ResponseOutputMessage);
-            }
-            const result: ResponsesResponse = {
-                id,
-                object: "response",
-                created_at: Math.floor(Date.now() / 1000),
-                status: "completed",
-                model: modelConfig.model,
-                output,
-                usage: estimateUsage(parsed.accumulated_token_usage, normalized.message.length, parsed.text.length + parsed.thinking.length),
-            };
-            sendJson(res, 200, result);
+            await execute();
         }
     } catch (error) {
         if (abortController.signal.aborted || res.writableEnded) {
