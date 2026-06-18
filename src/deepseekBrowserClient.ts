@@ -117,12 +117,15 @@ export class DeepSeekBrowserClient {
     // 发送按钮
     private async send(): Promise<boolean> {
         const page = await this.page;
-        // 依赖input进行定位
-        const target = page.locator('input[type="file"][multiple] + *').first();
-        if (!await target.count()) return false;
-        await target.scrollIntoViewIfNeeded();
-        await target.click();
-        return true;
+        try {
+            // 依赖input进行定位
+            const target = page.locator('input[type="file"][multiple] + *').first();
+            if (!await target.count()) return false;
+            await target.scrollIntoViewIfNeeded();
+            await target.click();
+        } catch {
+            return false;
+        } return true;
     }
 
     // 输入消息
@@ -359,7 +362,10 @@ export class DeepSeekBrowserClient {
                     return postData.chat_session_id === capturedSessionId;
                 });
                 const sent = await this.withAbort(this.send(), params.signal);
-                if (!sent) throw new Error("Failed to click DeepSeek send button.");
+                if (!sent) {
+                    void responsePromise.catch(() => undefined);
+                    throw new Error("Failed to click DeepSeek send button.");
+                }
 
                 const response = await this.withAbort(responsePromise, params.signal);
                 const contentType = response.headers()["content-type"] ?? "";
