@@ -43,7 +43,15 @@ tool_functions = {
 input_items = [
     {
         "role": "user",
-        "content": "任务1：请计算斐波那契数列的第 11 项是多少？（使用两种编程语言）\n任务2：南京的天气是什么？",
+        "content": [{
+            "type": "input_text",
+            "text": "任务0：文件名称和内容是什么？任务1：请计算斐波那契数列的第 11 项是多少？（使用两种编程语言）\n任务2：南京的天气是什么？"
+        }, {
+            "type": "input_file",
+            "detail": "low",
+            "file_data": "5oiR5pivZGVlcHNlZWs=",
+            "file_name": "who am i.txt"
+        }],
     }
 ]
 

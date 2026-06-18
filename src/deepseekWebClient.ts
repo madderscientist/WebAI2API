@@ -1,5 +1,21 @@
 import crypto from "node:crypto";
 import { type DeepSeekCredentials } from "./auth.js";
+import { detectMimeType } from "./utils.js";
+
+export interface ServerChatRequest {
+    message: string;
+    fileIds?: string[];
+
+    sessionId?: string;
+    parentMessageId?: number | null;    // null为第一句话 此参数影响上下文 超过现有长度会报错
+
+    modelType?: 'expert' | 'default' | 'vision' | null;
+    searchEnabled?: boolean;
+    thinkingEnabled?: boolean;
+
+    preempt?: boolean;  // 抢占
+    signal?: AbortSignal;
+}
 
 export interface DeepSeekPowChallenge {
     algorithm: string;
@@ -223,18 +239,8 @@ export class DeepSeekWebClient {
         return sessionId;
     }
 
-    // 发送消息
-    async chatCompletions(params: {
-        sessionId: string;
-        message: string;
-        modelType?: string | null; // 可以是 'expert'; null 为快速模式 'default'
-        fileIds?: string[];
-        searchEnabled?: boolean;
-        thinkingEnabled?: boolean;
-        preempt?: boolean;  // 抢占
-        parentMessageId?: number | null;   // null为第一句话 此参数影响上下文 超过现有长度会报错
-        signal?: AbortSignal;
-    }): Promise<ReadableStream<Uint8Array>> {
+    // 发送消息 sessionId 必填
+    async chatCompletions(params: ServerChatRequest & {sessionId: string}): Promise<ReadableStream<Uint8Array>> {
         const targetPath = "/api/v0/chat/completion";
         const challenge = await this.createPowChallenge(targetPath);
         const answer = await this.solvePow(challenge);
@@ -288,7 +294,10 @@ export class DeepSeekWebClient {
     }
 
     // 发送文件，返回 fileId。上传后需要轮询文件状态，直到成功或失败
-    async uploadFile(fileData: Buffer, fileName: string): Promise<string> {
+    async uploadFile(
+        fileData: Buffer, fileName: string,
+        modelType: ServerChatRequest["modelType"] = "default"
+    ): Promise<string> {
         if (this.verbose) console.log(`[DeepSeekWebClient] Uploading file ${fileName} (${fileData.length} bytes)...`);
         const targetPath = "/api/v0/file/upload_file";
         const challenge = await this.createPowChallenge(targetPath);
@@ -301,19 +310,29 @@ export class DeepSeekWebClient {
             }),
         ).toString("base64");
 
-        const formData = new (globalThis as unknown as { FormData: new () => FormData }).FormData();
+        const formData = new FormData();
         formData.append(
             "file",
-            new (globalThis as unknown as { Blob: new (p: unknown[]) => Blob }).Blob([fileData]),
+            new Blob([fileData as unknown as BlobPart], {
+                type: detectMimeType(fileData, fileName),
+            }),
             fileName,
         );
 
+        // 移除 Content-Type 字段 让nodejs自己填 不然会报错：File upload failed: 400 Invalid `boundary` for `multipart/form-data` request
+        const requestHeaders = { ...this.headers };
+        for (const key of Object.keys(requestHeaders)) {
+            if (key.toLowerCase() === "content-type") {
+                delete requestHeaders[key];
+            }
+        }
         const res = await fetch(`https://chat.deepseek.com${targetPath}`, {
             method: "POST",
             headers: {
-                ...this.headers,
+                ...requestHeaders,
                 "x-ds-pow-response": powResponse,
                 "x-file-size": fileData.length.toString(),
+                "x-model-type": modelType ?? "default",
             },
             body: formData,
         });
@@ -323,7 +342,12 @@ export class DeepSeekWebClient {
         }
 
         const data = await res.json();
-        const fileId = data.data.biz_data.id;
+        const fileId = data.data?.biz_data?.id;
+        if (!fileId) throw new Error(`File ID missing in upload response for ${fileName}: ${JSON.stringify(data)}`);
+        const uploadStatus: string | undefined = data.data.biz_data.status;
+        if (uploadStatus === "SUCCESS") return fileId;
+        if (uploadStatus === "FAILED") throw new Error(`File upload failed for ${fileName} with fileId ${fileId}`);
+        if (uploadStatus === "CONTENT_EMPTY") throw new Error(`File upload failed due to empty content for ${fileName} with fileId ${fileId}`);
 
         // Polling for success
         let attempts = 0;
@@ -343,7 +367,7 @@ export class DeepSeekWebClient {
                     return fileId;
                 }
                 if (file?.status === "FAILED") {
-                    throw new Error(`File parsing failed for ${fileId}`);
+                    throw new Error(`File parsing failed for ${fileName} with fileId ${fileId}`);
                 }
             }
             await new Promise((r) => setTimeout(r, 2000));

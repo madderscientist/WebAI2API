@@ -17,10 +17,10 @@ import {
 } from "./httpUtils.js";
 import { createServerClient, type ServerClient } from "./serverClient.js";
 import { buildResponseId } from "./responseId.js";
-import { MODEL_LIST, getModelConfig } from "./models.js";
-import { asChatCompletionsRequest, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest } from "./completions/completionsType.js";
+import { MODEL_LIST } from "./models.js";
+import { asChatCompletionsRequest, ChatCompletionsResponse, message2CompletionsMessage, normalizeChatCompletionsRequest, uploadFiles as comp_uploadFiles } from "./completions/completionsType.js";
 import { streamEventsFromStream as completionsSFS } from "./completions/stream.js";
-import { asResponsesCreateRequest, estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesResponse } from "./responses/responsesType.js";
+import { asResponsesCreateRequest, estimateUsage, message2ResponsesOutput, normalizeResponsesRequest, ResponseOutputMessage, type ResponsesResponse, uploadFiles as resp_uploadFiles } from "./responses/responsesType.js";
 import { enqueueResponseSessionRequest, rememberResponseSessionMessageId, resolveQueuedParentMessageId } from "./responses/sessionQueue.js";
 import { shouldParseToolCall } from "./toolPrompt.js";
 import { streamEventsFromStream } from "./responses/stream.js";
@@ -43,7 +43,7 @@ async function handleModels(res: ServerResponse) {
 async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, client: ServerClient) {
     const rawInput = asChatCompletionsRequest(await readRequestJson(req));
     const normalized = normalizeChatCompletionsRequest(rawInput);
-    const modelConfig = getModelConfig(rawInput.model || 'deepseek');
+    const fileIds = await comp_uploadFiles(rawInput, client, normalized.modelType);
     const useTool = shouldParseToolCall(rawInput.tool_choice, rawInput.tools);
 
     if (!normalized.message.trim()) {
@@ -58,10 +58,7 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
     try {
         const runResult = await client.runChatCompletion({
             ...normalized,
-            modelType: modelConfig.modelType,
-            fileIds: [],
-            searchEnabled: modelConfig.searchEnabled,
-            thinkingEnabled: modelConfig.thinkingEnabled,
+            fileIds,
             signal: abortController.signal,
         });
 
@@ -79,7 +76,7 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
                 id: requestId,
                 object: "chat.completion",
                 created: Math.floor(Date.now() / 1000),
-                model: modelConfig.model,
+                model: normalized.model,
                 choices: [{
                     index: 0,
                     message: msg,
@@ -100,7 +97,7 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
             runResult.body,
             useTool,
             requestId,
-            modelConfig.model,
+            normalized.model,
             normalized.message.length,
             (data) => {
                 if (abortController.signal.aborted || res.writableEnded) return;
@@ -131,14 +128,13 @@ async function handleChatCompletions(req: IncomingMessage, res: ServerResponse, 
 
 async function handleResponses(req: IncomingMessage, res: ServerResponse, client: ServerClient) {
     const rawInput = asResponsesCreateRequest(await readRequestJson(req));
-    const modelConfig = getModelConfig(rawInput.model);
     const useTool = shouldParseToolCall(rawInput.tool_choice, rawInput.tools);
     const normalized = normalizeResponsesRequest(rawInput);
     if (!normalized.message) {
         sendJson(res, 400, errorResponse("input must include at least one non-empty message."));
         return;
     }
-
+    const fileIds = await resp_uploadFiles(rawInput, client, normalized.modelType);
     const abortController = new AbortController();
     req.on("close", () => abortController.abort());
 
@@ -146,13 +142,11 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
     const execute = async () => {
         const runResult = await client.runChatCompletion({
             ...normalized,
+            fileIds,
             parentMessageId: queueSessionId
                 ? resolveQueuedParentMessageId(queueSessionId, normalized.parentMessageId)
                 : normalized.parentMessageId,
             signal: abortController.signal,
-            modelType: modelConfig.modelType,
-            searchEnabled: modelConfig.searchEnabled,
-            thinkingEnabled: modelConfig.thinkingEnabled,
         });
         const requestId = runResult.sessionId;
 
@@ -162,7 +156,7 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
                 runResult.body,
                 useTool,
                 requestId,
-                modelConfig.model,
+                normalized.model,
                 normalized.message.length,
                 (data) => {
                     if (abortController.signal.aborted || res.writableEnded) return;
@@ -197,7 +191,7 @@ async function handleResponses(req: IncomingMessage, res: ServerResponse, client
             object: "response",
             created_at: Math.floor(Date.now() / 1000),
             status: "completed",
-            model: modelConfig.model,
+            model: normalized.model,
             output,
             usage: estimateUsage(parsed.accumulated_token_usage, normalized.message.length, parsed.text.length + parsed.thinking.length),
         };

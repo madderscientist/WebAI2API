@@ -1,7 +1,8 @@
 // https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create
 // 以下截取了一些需要的，主要保证了：文本、图片、文件、函数调用
 
-import { ServerChatRequest } from "../serverClient.js";
+import type { ServerChatRequest } from "../../deepseekWebClient.js";
+import { getModelConfig } from "../models.js";
 
 // ======= 输入 =======
 export interface ChatCompletionsRequest {
@@ -55,9 +56,11 @@ export interface ChatCompletionContentPartImage {
 export interface FileContentPart {
     type: 'file';
     file: {
-        file_data?: string;
+        file_data?: string; // base64
         file_id?: string;
         filename?: string;
+        // completions 没有 file_url. 下面的是我加的
+        file_url?: string;
     }
 }
 
@@ -114,8 +117,9 @@ export function asChatCompletionsRequest(req: any): ChatCompletionsRequest {
     return req as ChatCompletionsRequest;
 }
 
-export function normalizeChatCompletionsRequest(req: ChatCompletionsRequest): ServerChatRequest {
+export function normalizeChatCompletionsRequest(req: ChatCompletionsRequest): ServerChatRequest & { model: string } {
     if (!Array.isArray(req.messages)) throw new Error('Missing messages array.');
+    const modelConfig = getModelConfig(req.model);
 
     // 构建 prompt 文本
     const parsetool = shouldParseToolCall(req.tool_choice, req.tools);
@@ -133,6 +137,10 @@ export function normalizeChatCompletionsRequest(req: ChatCompletionsRequest): Se
         sessionId: undefined,
         parentMessageId: null,
         preempt: false,
+        model: modelConfig.model,   // 尽量保留原始model字段
+        modelType: modelConfig.modelType,
+        searchEnabled: modelConfig.searchEnabled,
+        thinkingEnabled: modelConfig.thinkingEnabled,
     };
 }
 
@@ -141,9 +149,12 @@ function buildPrompt(messages: ChatCompletionMessageParam[]): string {
 
     function ChatCompletionContentPart2Text(part: ChatCompletionContentPart): string {
         if (part.type === 'text') return part.text;
-        // 别的不管
-        if (part.type === 'image_url') return '';
-        if (part.type === 'file') return '';
+        // 只生成占位信息，具体文件需要其他地方上传
+        if (part.type === 'image_url') return '<user_image />';
+        if (part.type === 'file') {
+            const file_str = ['<user_file'];
+            if (part.file.filename) file_str.push(`name="${part.file.filename}"`);
+        }
         return '';
     }
 
@@ -187,8 +198,6 @@ function buildPrompt(messages: ChatCompletionMessageParam[]): string {
     }
     return lines.join("\n\n");
 }
-
-// 暂时不处理文件和图片
 
 export function message2CompletionsMessage(msg: string, matchTool = false): ChatCompletionAssistantMessageParam {
     const message: ChatCompletionAssistantMessageParam = {
@@ -235,4 +244,46 @@ export function message2CompletionsMessage(msg: string, matchTool = false): Chat
     }
 
     return message;
+}
+
+
+import { ServerClient } from "../serverClient.js";
+import { base642Buffer } from "../../utils.js";
+
+function _uploadFiles(contents: ChatCompletionContentPart[], client: ServerClient, modelType: ServerChatRequest["modelType"]): Promise<string[]> {
+    const promises: Promise<string>[] = [];
+    for (const part of contents) {
+        switch (part.type) {
+            case 'file':
+                if (part.file.file_id) {
+                    promises.push(Promise.resolve(part.file.file_id));
+                } else if (part.file.file_data) {
+                    const buffer = base642Buffer(part.file.file_data);
+                    promises.push(client.uploadFile(buffer, part.file.filename ?? 'file', modelType));
+                } else if (part.file.file_url) {
+                    promises.push(client.uploadFile(part.file.file_url, part.file.filename ?? 'file', modelType));
+                } break;
+            case 'image_url':
+                promises.push(client.uploadFile(part.image_url.url, 'image', modelType));
+                break;
+            default:
+                break;
+        }
+    } return Promise.all(promises);
+}
+
+export function uploadFiles(req: ChatCompletionsRequest, client: ServerClient, modelType: ServerChatRequest["modelType"]): Promise<string[]> {
+    const msgs = req.messages;
+    if (!msgs) return Promise.resolve([]);
+    const contents: ChatCompletionContentPart[] = [];
+    for (const msg of msgs) {
+        if (Array.isArray(msg.content)) {
+            for (const contentItem of msg.content) {
+                if (contentItem.type !== 'text') {
+                    contents.push(contentItem);
+                }
+            }
+        }
+    }
+    return _uploadFiles(contents, client, modelType);
 }

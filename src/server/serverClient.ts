@@ -4,26 +4,13 @@ import { loadCredentials } from "../auth.js";
 import { launchChromeForDebugging } from "../browser.js";
 import { DeepSeekBrowserClient } from "../deepseekBrowserClient.js";
 import { DeepSeekWebClient } from "../deepseekWebClient.js";
+import { getFileBufferFromUrl } from "../utils.js";
+import type { ServerChatRequest } from "../deepseekWebClient.js";
 
 export interface ServerClientOptions {
     credentialPath: string;
     browserMode: boolean;
     userDataDir?: string;
-}
-
-export interface ServerChatRequest {
-    message: string;
-    fileIds?: string[];
-
-    sessionId?: string;
-    parentMessageId?: number | null;
-
-    modelType?: string | null;
-    searchEnabled?: boolean;
-    thinkingEnabled?: boolean;
-
-    preempt?: boolean;
-    signal?: AbortSignal;
 }
 
 export interface ServerChatResult {
@@ -34,6 +21,7 @@ export interface ServerChatResult {
 export interface ServerClient {
     readonly mode: "api" | "browser";
     runChatCompletion(params: ServerChatRequest): Promise<ServerChatResult>;
+    uploadFile(url: string | Buffer, fileName: string, modelType?: ServerChatRequest["modelType"]): Promise<string>;
     deleteSession(sessionId: string): Promise<void>;
     close(): Promise<void>;
 }
@@ -82,6 +70,11 @@ class ApiServerClient implements ServerClient {
         await this.client.deleteSession(sessionId);
     }
 
+    async uploadFile(url: string | Buffer, fileName: string, modelType: "vision" | "default" = "default"): Promise<string> {
+        const buffer = Buffer.isBuffer(url) ? url : await getFileBufferFromUrl(url);
+        return this.client.uploadFile(buffer, fileName, modelType);
+    }
+
     async close(): Promise<void> {
         return;
     }
@@ -127,6 +120,11 @@ class BrowserServerClient implements ServerClient {
             sessionId: result.sessionId,
             body: stringToStream(result.body),
         };
+    }
+
+    async uploadFile(url: string | Buffer, fileName: string, modelType: "vision" | "default" = "default"): Promise<string> {
+        const buffer = Buffer.isBuffer(url) ? url : await getFileBufferFromUrl(url);
+        return this.client.uploadFile(buffer, fileName, modelType);
     }
 
     async deleteSession(sessionId: string): Promise<void> {

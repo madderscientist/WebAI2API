@@ -44,6 +44,7 @@ export interface ResponseInputFile {
     file_id?: string;
     file_url?: string;
     file_name?: string;
+    file_data?: string;   // base64
 }
 
 // 调用结果
@@ -123,9 +124,11 @@ export interface ResponsesError {
 }
 
 // ===== 转为模型输入 =====
-import { ServerChatRequest } from '../serverClient.js';
+import  type { ServerChatRequest } from '../../deepseekWebClient.js';
 import { parseResponseId } from '../responseId.js';
 import { ToolDescription, buildToolPrompt, ToolCallParser, toolCallFormat, autoToolChoice, shouldParseToolCall } from '../toolPrompt.js';
+import { getModelConfig } from '../models.js';
+import { ServerClient } from '../serverClient.js';
 
 // 类型转换 & 填充默认值
 export function asResponsesCreateRequest(req: any): ResponsesCreateRequest {
@@ -134,11 +137,11 @@ export function asResponsesCreateRequest(req: any): ResponsesCreateRequest {
     return req as ResponsesCreateRequest;
 }
 
-export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest {
+export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChatRequest & { model: string } {
     // 如果 previous_response_id 是 noop-empty-input，当作 session 为 null 处理
+    const modelConfig = getModelConfig(x.model);
     const prevId = (x.previous_response_id && !x.previous_response_id.startsWith(READY_RESPONSE_ID)) ? x.previous_response_id : '';
     const { sessionId, messageId } = parseResponseId(prevId);
-
     // 构建prompt
     const parsetool = shouldParseToolCall(x.tool_choice, x.tools);
     const toolDescriptions = (x.tools ?? []).map(tool => ({
@@ -160,6 +163,10 @@ export function normalizeResponsesRequest(x: ResponsesCreateRequest): ServerChat
         sessionId: sessionId ?? undefined,
         parentMessageId: messageId ?? null,
         preempt: false,
+        model: modelConfig.model,   // 尽量保留原始model字段
+        modelType: modelConfig.modelType,
+        searchEnabled: modelConfig.searchEnabled,
+        thinkingEnabled: modelConfig.thinkingEnabled,
     }
 }
 
@@ -179,7 +186,18 @@ function messageFromInputItem(items: string | ResponsesInputItem[], dropFirstRol
                     const t = (contentItem as ResponseInputText).text;
                     if (t.length > 0) outputs.push(t);
                 }
-                // 其他的(图片/文件)不处理
+                // 文件在这里先用文本占位，上传需要client，在server中实现
+                else if (contentItem.type.includes('image')) {
+                    // 忽略 detail image_url id 字段
+                    outputs.push('<user_image />');
+                } else if (contentItem.type.includes('file')) {
+                    const item = contentItem as ResponseInputFile;
+                    const file = ['<user_file'];
+                    // 忽略 detail file_url id 字段
+                    if (item.file_name) file.push(`name=${item.file_name}`);
+                    file.push('/>');
+                    outputs.push(file.join(' '));
+                }
             }
         } return outputs;
     }
@@ -323,4 +341,45 @@ export function estimateUsage(total: number, inputLength: number, outputLength: 
         output_tokens: output_token_est,
         total_tokens: total,
     }
+}
+
+function _uploadFiles(contents: ResponseInputContent[], client: ServerClient, modelType: ServerChatRequest["modelType"]): Promise<string[]> {
+    const promises: Promise<string>[] = [];
+    for (const content of contents) {
+        switch (content.type) {
+            case 'input_image':
+                if (content.file_id) {
+                    promises.push(Promise.resolve(content.file_id));
+                } else if (content.image_url) {
+                    promises.push(client.uploadFile(content.image_url, `image_${Date.now()}.jpg`, modelType));
+                } break;
+            case 'input_file':
+                if (content.file_id) {
+                    promises.push(Promise.resolve(content.file_id));
+                } else if (content.file_data) {
+                    promises.push(client.uploadFile(Buffer.from(content.file_data, 'base64'), content.file_name ?? `file_${Date.now()}`, modelType));
+                } else if (content.file_url) {
+                    promises.push(client.uploadFile(content.file_url, content.file_name ?? `file_${Date.now()}`, modelType));
+                } break;
+            default:
+                break;
+        }
+    } return Promise.all(promises);
+}
+
+export function uploadFiles(req: ResponsesCreateRequest, client: ServerClient, modelType: ServerChatRequest["modelType"]): Promise<string[]> {
+    const inputItems = req.input;
+    if (typeof inputItems === 'string') return Promise.resolve([]);
+    const contents: ResponseInputContent[] = [];
+    for (const item of inputItems) {
+        if (!(item.type === 'message' || item.type === undefined)) continue;
+        const messageItem = item as EasyInputMessage;
+        if (typeof messageItem.content === 'string') continue;
+        for (const contentItem of messageItem.content) {
+            if (contentItem.type.includes('image') || contentItem.type.includes('file')) {
+                contents.push(contentItem);
+            }
+        }
+    }
+    return _uploadFiles(contents, client, modelType);
 }

@@ -1,4 +1,6 @@
 import { Browser, Page, Route } from "playwright-core";
+import { detectMimeType } from "./utils.js";
+import type { ServerChatRequest } from "./deepseekWebClient.js";
 
 interface QueuedTask<T> {
     runner: () => Promise<T>;
@@ -116,7 +118,7 @@ export class DeepSeekBrowserClient {
     private async send(): Promise<boolean> {
         const page = await this.page;
         // 依赖input进行定位
-        const target = page.locator('input[type="file"][multiple] + * [aria-disabled="false"]').first();
+        const target = page.locator('input[type="file"][multiple] + *').first();
         if (!await target.count()) return false;
         await target.scrollIntoViewIfNeeded();
         await target.click();
@@ -129,25 +131,34 @@ export class DeepSeekBrowserClient {
         return page.locator('textarea[autocomplete="off"]').fill(text).then(() => true).catch(() => false);
     }
 
-    private async _uploadFile(filePath: string): Promise<string> {
-        if (this.verbose) console.log(`[DeepSeekBrowserClient] Starting file upload for ${filePath}`);
+    private async _uploadFile(
+        fileData: Buffer, fileName: string,
+        modelType: ServerChatRequest["modelType"] = "default"
+    ): Promise<string> {
+        if (this.verbose) console.log(`[DeepSeekBrowserClient] Starting file upload for ${fileName}`);
         const page = await this.page;
         // 如果当前页面不是deepseek则先跳转
         if (!page.url().includes("deepseek.com")) {
             await page.goto('https://chat.deepseek.com');
         }
+        if (modelType !== "default" && modelType !== null) {
+            // 切换到识图模式 识图模式不会拒绝OCR失败的图片
+            await page.locator(`[data-model-type="${modelType}"][role="radio"]`).click();
+        }
         let fileId: string | null = null;
+        let upload_status: string | undefined = undefined;
 
         // 监听上传响应获取 fileId
         const uploadHandler = (response: { url: () => string; ok: () => boolean; json: () => Promise<unknown> }) => {
             if (!response.url().includes("/api/v0/file/upload_file")) return;
             if (!response.ok()) return;
             response.json().then((data: unknown) => {
-                const parsed = data as { data?: { biz_data?: { id?: string, file_name?: string } } };
-                if (parsed.data?.biz_data?.file_name !== filePath.split('/').pop()) {
+                const parsed = data as { data?: { biz_data?: { id?: string, file_name?: string, status?: string } } };
+                if (parsed.data?.biz_data?.file_name !== fileName) {
                     return; // 文件名不匹配，可能不是目标响应
                 }
                 fileId = parsed.data?.biz_data?.id ?? null;
+                upload_status = parsed.data?.biz_data?.status;
                 page.off("response", uploadHandler);
             }).catch(() => {
                 // 忽略解析错误
@@ -158,7 +169,11 @@ export class DeepSeekBrowserClient {
 
         try {
             // 触发上传
-            await page.setInputFiles('input[type="file"][multiple]', filePath);
+            await page.setInputFiles('input[type="file"][multiple]', {
+                name: fileName,
+                buffer: fileData,
+                mimeType: detectMimeType(fileData, fileName),
+            });
 
             // 等待获取 fileId
             let attempts = 0;
@@ -168,6 +183,9 @@ export class DeepSeekBrowserClient {
             }
             page.off("response", uploadHandler);
             if (!fileId) throw new Error("Failed to get fileId from upload response");
+            if (upload_status === "SUCCESS") return fileId;
+            if (upload_status === "FAILED") throw new Error(`File upload failed for ${fileName} with fileId ${fileId}`);
+            if (upload_status === "CONTENT_EMPTY") throw new Error(`File upload failed due to empty content for ${fileName} with fileId ${fileId}`);
 
             // 监听 fetch_files 响应直到文件处理完成
             const { promise, resolve, reject } = Promise.withResolvers<void>();
@@ -185,11 +203,11 @@ export class DeepSeekBrowserClient {
                             return;
                         }
                         if (file.status === "FAILED") {
-                            reject(new Error(`File processing failed for fileId ${fileId}`));
+                            reject(new Error(`File processing failed for ${fileName} with fileId ${fileId}`));
                             return;
                         }
                         if (file?.status === "CONTENT_EMPTY") {
-                            reject(new Error(`File processing failed due to empty content for fileId ${fileId}`));
+                            reject(new Error(`File processing failed due to empty content for ${fileName} with fileId ${fileId}`));
                             return;
                         }
                     }
@@ -225,8 +243,11 @@ export class DeepSeekBrowserClient {
         }
     }
 
-    async uploadFile(filePath: string): Promise<string> {
-        return this.enqueueTask<string>(() => this._uploadFile(filePath));
+    async uploadFile(
+        fileData: Buffer, fileName: string,
+        modelType: ServerChatRequest["modelType"] = "default"
+    ): Promise<string> {
+        return this.enqueueTask<string>(() => this._uploadFile(fileData, fileName, modelType));
     }
 
     // 删除会话
@@ -294,17 +315,7 @@ export class DeepSeekBrowserClient {
         return this.enqueueTask<boolean | null>(() => this._deleteSession(sessionId));
     }
 
-    async chatCompletions(params: {
-        sessionId?: string; // 不填就新建会话
-        message: string;
-        modelType?: string | null; // 可以是 'expert'; null 为快速模式 'default'
-        fileIds?: string[];
-        searchEnabled?: boolean;
-        thinkingEnabled?: boolean;
-        preempt?: boolean;
-        parentMessageId?: number | null;   // null为第一句话 此参数影响上下文 超过现有长度会报错
-        signal?: AbortSignal;
-    }) {
+    async chatCompletions(params: ServerChatRequest) {  // sessionId 不填会自动新建会话
         return this.enqueueTask<ChatCompletionResult>(async () => {
             if (this.verbose) console.log(`[DeepSeekBrowserClient] Starting chat completion.`);
             const page = await this.page;
