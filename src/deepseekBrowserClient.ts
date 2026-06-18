@@ -120,7 +120,11 @@ export class DeepSeekBrowserClient {
         try {
             // 依赖input进行定位
             const target = page.locator('input[type="file"][multiple] + *').first();
-            if (!await target.count()) return false;
+            if (!await target.count()) {
+                // 如果找不到启用的按钮，尝试按回车作为兜底
+                await page.keyboard.press('Enter');
+                return true;
+            }
             await target.scrollIntoViewIfNeeded();
             await target.click();
         } catch {
