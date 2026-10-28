@@ -52,6 +52,18 @@ pnpm auth -o .data/deepseek-credentials.json
 ```
 如果不想直接关闭浏览器，可以使用 `--keep`
 
+完全退出当前账号并清理本地登录数据：
+```bash
+pnpm logout
+```
+会调用 DeepSeek 的 logout 接口使当前凭证失效，然后删除默认凭证文件和浏览器 profile 目录（`.data/profile-9222`）；不会删除服务端聊天记录，下次使用需要重新登录。
+
+如果登录时使用了自定义路径，需要传入同一组路径：
+```bash
+pnpm logout --credentials .data/deepseek-credentials.json --user-data-dir .data/profile-9222
+```
+执行前请关闭使用该 profile 的浏览器和服务。为防止误删个人浏览器数据，profile 只允许是项目 `.data` 下的子目录，不支持符号链接或个人 Edge/Chrome 用户目录。接口注销失败时不会删除本地文件；凭证文件已不存在时会提示跳过接口注销，仅清理本地数据。注销成功后会先删除凭证文件；若 profile 被占用导致删除失败，关闭相关进程后重新执行即可继续清理。
+
 <details>
 <summary>【不推荐】使用 Windows 账户登录</summary>
 
@@ -160,6 +172,7 @@ WebAI2API/realResponse
 
 WebAI2API/src
 │  auth.ts			登录、获取凭证
+│  logout.ts			退出登录、删除凭证和专用 profile
 │  browser.ts		浏览器启动
 │  deepseekBrowserClient.ts	浏览器封装
 │  deepseekStreamParser.ts	deepseek的流式返回解析

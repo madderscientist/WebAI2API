@@ -483,14 +483,22 @@ export class DeepSeekWebClient {
         if (this.verbose) console.log(`[DeepSeekWebClient] Logging out...`);
         const res = await fetch('https://chat.deepseek.com/api/v0/users/logout', {
             method: 'POST',
-            headers: this.headers
+            headers: this.headers,
+            signal: AbortSignal.timeout(15000),
         });
         if (!res.ok) {
             const errorText = await res.text();
             console.error(`[DeepSeekWebClient] Failed to logout: ${res.status}`, errorText);
             throw new Error(`Failed to logout: ${res.status} ${errorText}`);
         }
-        const data = await res.json();
+        const data = await res.json() as {
+            code: number;
+            msg?: string;
+            data?: { biz_code: number; biz_msg?: string };
+        };
+        if (data?.code !== 0 || data.data?.biz_code !== 0) {
+            throw new Error(`Failed to logout: ${data?.data?.biz_msg || data?.msg || "invalid logout response"}`);
+        }
         if (this.verbose) console.log(`[DeepSeekWebClient] Logged out successfully.`);
         return data;
     }
