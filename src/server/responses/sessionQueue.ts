@@ -1,3 +1,12 @@
+/**
+ * Responses 的会话级队列：HTTP 和 WebSocket 共用，同一 sessionId 的请求按入队顺序
+ * 串行执行，前一个请求完整结束（包括流式输出解析）后才执行下一个；不同会话互不阻塞，
+ * 不限制 server 的全局并发。
+ * 同一排队批次中，后续请求使用上一成功请求记录的 messageId 作为 parentMessageId，
+ * 优先于请求自带的父消息 ID，以衔接连续对话而不是形成分支。
+ * 每个会话最多等待 8 个请求（不含正在执行的请求），满时拒绝；单个请求失败不阻塞后续请求。队列耗尽后清理状态，下一批次重新使用请求自带的父消息 ID。
+ */
+
 type QueuedRunner<T> = {
     runner: () => Promise<T>;
     resolve: (value: T) => void;
@@ -5,7 +14,7 @@ type QueuedRunner<T> = {
 };
 
 interface SessionQueueState {
-    // running: boolean;   // 这个状态省略了，因为只要 queue 有内容就说明在运行
+    running: boolean;
     queue: QueuedRunner<any>[];
     lastMessageId: number | null;
 }
@@ -17,6 +26,7 @@ function getOrCreateSessionState(sessionId: string): SessionQueueState {
     let state = sessionStates.get(sessionId);
     if (!state) {
         state = {
+            running: false,
             queue: [],
             lastMessageId: null,
         };
@@ -27,7 +37,8 @@ function getOrCreateSessionState(sessionId: string): SessionQueueState {
 
 async function processSessionQueue(sessionId: string): Promise<void> {
     const state = sessionStates.get(sessionId);
-    if (!state) return;
+    if (!state || state.running) return;
+    state.running = true;
     try {
         while (state.queue.length > 0) {
             const item = state.queue.shift()!;
@@ -39,6 +50,7 @@ async function processSessionQueue(sessionId: string): Promise<void> {
             }
         }
     } finally {
+        state.running = false;
         if (state.queue.length > 0) {
             const error = new Error(`Session ${sessionId} queue processor stopped`);
             for (const pending of state.queue.splice(0)) {
